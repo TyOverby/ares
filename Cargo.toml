@@ -1,4 +1,4 @@
 [package]
-name = "wisp"
+name = "rebar"
 version = "0.1.0"
 authors = ["Ty Overby <ty@pre-alpha.com>"]
