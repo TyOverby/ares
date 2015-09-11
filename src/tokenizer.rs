@@ -21,10 +21,10 @@ fn read_from_tokens(tokens: &mut Vec<String>) -> Value {
     if &token == "(" {
         let mut list = vec![];
         while &tokens[0] != ")" {
-            list.push(Rc::new(read_from_tokens(tokens)));
+            list.push(read_from_tokens(tokens));
         }
         tokens.remove(0);
-        return Value::List(list)
+        return Value::List(Rc::new(list))
     } else if &token == ")" {
         panic!("Unexpected )");
     } else {
@@ -36,6 +36,6 @@ fn atom(s: String) -> Value {
     //TODO: handle everything other than ints :P
     match s.parse() {
         Ok(i) => Value::Int(i),
-        Err(_) => Value::Ident(s)
+        Err(_) => Value::Ident(Rc::new(s))
     }
 }

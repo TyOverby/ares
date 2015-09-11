@@ -12,6 +12,19 @@ pub struct Procedure {
     environment: Rc<RefCell<Environment>>
 }
 
+impl PartialEq for Procedure {
+    fn eq(&self, other: &Procedure) -> bool {
+        use std::mem::transmute;
+        let a: *mut () = unsafe{ transmute(&self.body) };
+        let b: *mut () = unsafe{ transmute(&other.body) };
+
+        let c: *mut () = unsafe{ transmute(&self.environment) };
+        let d: *mut () = unsafe{ transmute(&other.environment) };
+
+        a == b && c == d
+    }
+}
+
 impl ::std::fmt::Debug for Procedure {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
         fmt.write_str("<lambda>")
@@ -66,37 +79,38 @@ impl Environment {
     }
 }
 
-pub fn eval(value: Value, env: &Rc<RefCell<Environment>>) -> Value {
+pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
     match value {
-        v@Value::String(_) => v,
-        v@Value::Int(_) => v,
-        v@Value::Float(_) => v,
-        v@Value::Bool(_) => v,
+        &ref v@Value::String(_) => v.clone(),
+        &ref v@Value::Int(_) => v.clone(),
+        &ref v@Value::Float(_) => v.clone(),
+        &ref v@Value::Bool(_) => v.clone(),
 
-        v@Value::ForeignFn(_) => v,
-        v@Value::Lambda(_) => v,
+        &ref v@Value::ForeignFn(_) => v.clone(),
+        &ref v@Value::Lambda(_) => v.clone(),
 
-        Value::Ident(ident) => {
+        &Value::Ident(ref ident) => {
             match env.borrow().get(&ident) {
                 Some(env) => env,
                 None => panic!("Variable {} not found", ident)
             }
         }
 
-        Value::List(mut l) => {
-            match &*l.remove(0) {
-                &Value::Ident(ref v) if AsRef::<str>::as_ref(v) == "quote" => {
-                    (&*l.into_iter().next().unwrap()).clone()
+        &Value::List(ref l) => {
+            let mut items = l.iter();
+            match items.next().unwrap() {
+                &Value::Ident(ref v) if &**v == "quote" => {
+                    items.next().unwrap().clone()
                 }
-                &Value::Ident(ref v) if AsRef::<str>::as_ref(v) == "lambda" => {
-                    let names = l.remove(0);
-                    let body = l.remove(0);
+                &Value::Ident(ref v) if &**v == "lambda" => {
+                    let names = items.next().unwrap();
+                    let body  = items.next().unwrap();
 
                     let param_names = match &*names {
                         &Value::List(ref v) => {
-                            v.iter().map(|n| {
-                                if let &Value::Ident(ref s) = &**n {
-                                    s.clone()
+                            items.map(|n| {
+                                if let &Value::Ident(ref s) = n {
+                                    (&**s).clone()
                                 } else {
                                     panic!("non ident param name");
                                 }
@@ -106,37 +120,39 @@ pub fn eval(value: Value, env: &Rc<RefCell<Environment>>) -> Value {
                     };
 
                     Value::Lambda(Procedure {
-                        body: body,
+                        body: Rc::new(body.clone()),
                         param_names: param_names,
                         environment: env.clone()
                     })
                 }
-                &Value::Ident(ref v) if AsRef::<str>::as_ref(v) == "define" => {
-                    let name = if let &Value::String(ref s) = &* l.remove(0) {
-                        s.clone()
+                &Value::Ident(ref v) if &**v == "define" => {
+                    let name: String = if let &Value::String(ref s) = items.next().unwrap() {
+                        (&**s).clone()
                     } else {
                         panic!("define with no name");
                     };
-                    let value: Value = (*l.remove(0)).clone();
+                    let value = items.next().unwrap();
                     let result = eval(value, env);
                     env.borrow_mut().bindings.insert(name, result.clone());
                     result
                 }
-                &Value::Ident(ref v) if AsRef::<str>::as_ref(v) == "if" => {
-                    match eval((*l.remove(0)).clone(), env) {
-                        Value::Bool(true) => eval((*l.remove(0)).clone(), env),
-                        Value::Bool(false) => eval((*l.remove(1)).clone(), env),
+                &Value::Ident(ref v) if &**v == "if" => {
+                    let true_cond = items.next().unwrap();
+                    let false_cond = items.next().unwrap();
+                    match eval(items.next().unwrap(), env) {
+                        Value::Bool(true) => eval(true_cond, env),
+                        Value::Bool(false) => eval(false_cond, env),
                         _ => panic!("boolean expected in 'if'")
                     }
                 }
-                &ref other => {
-                    match eval(other.clone(), env) {
+                other => {
+                    match eval(other, env) {
                         Value::Lambda(procedure) => {
-                            let new_env = procedure.gen_env(l.into_iter().map(|v| eval((*v).clone(), env)));
-                            eval((*procedure.body).clone(), &new_env)
+                            let new_env = procedure.gen_env(items.map(|v| eval(v, env)));
+                            eval(&procedure.body, &new_env)
                         }
                         Value::ForeignFn(ff) => {
-                            (ff.function)(l.into_iter().map(|v| eval((*v).clone(), env)).collect())
+                            (ff.function)(items.map(|v| eval(v, env)).collect())
                         }
                         x => panic!("{:?} is not executable", x)
                     }

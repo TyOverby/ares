@@ -28,15 +28,24 @@ impl std::fmt::Debug for ForeignFunction {
     }
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for ForeignFunction {
+    fn eq(&self, other: &ForeignFunction) -> bool {
+        use std::mem::transmute;
+        let a: *mut () = unsafe{ transmute(&self.function) };
+        let b: *mut () = unsafe{ transmute(&other.function) };
+        a == b
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    List(Vec<Rc<Value>>),
-    String(String),
+    List(Rc<Vec<Value>>),
+    String(Rc<String>),
     Float(f64),
     Int(i64),
     Bool(bool),
 
-    Ident(String),
+    Ident(Rc<String>),
     ForeignFn(ForeignFunction),
     Lambda(Procedure)
 }
