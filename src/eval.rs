@@ -3,7 +3,20 @@ use std::convert::AsRef;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::{Value, ForeignFunction};
+use super::{Value};
+
+#[derive(Clone)]
+pub struct ForeignFunction {
+    pub name: String,
+    function: FfType
+}
+
+#[derive(Clone)]
+enum FfType{
+    FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> Value>),
+    //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
+    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value>)
+}
 
 #[derive(Clone)]
 pub struct Procedure {
@@ -11,6 +24,46 @@ pub struct Procedure {
     param_names: Vec<String>, // TODO: allow this to also be a single identifier for varargs
     environment: Rc<RefCell<Environment>>
 }
+
+pub struct Environment {
+    parent: Option<Rc<RefCell<Environment>>>,
+    bindings: HashMap<String, Value>
+}
+
+impl ForeignFunction {
+    fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> Value>) -> ForeignFunction {
+        ForeignFunction {
+            name: name,
+            function: FfType::FreeFn(function)
+        }
+    }
+
+    fn new_uneval_function(
+        name: String,
+        function: Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value>) -> ForeignFunction
+    {
+        ForeignFunction {
+            name: name,
+            function: FfType::UnEvalFn(function)
+        }
+    }
+}
+
+impl ::std::fmt::Debug for ForeignFunction {
+    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
+        fmt.write_str(&self.name)
+    }
+}
+
+impl PartialEq for ForeignFunction {
+    fn eq(&self, other: &ForeignFunction) -> bool {
+        use std::mem::transmute;
+        let a: *mut () = unsafe{ transmute(&self.function) };
+        let b: *mut () = unsafe{ transmute(&other.function) };
+        a == b
+    }
+}
+
 
 impl PartialEq for Procedure {
     fn eq(&self, other: &Procedure) -> bool {
@@ -48,11 +101,6 @@ impl Procedure {
     }
 }
 
-pub struct Environment {
-    parent: Option<Rc<RefCell<Environment>>>,
-    bindings: HashMap<String, Value>
-}
-
 
 impl Environment {
     pub fn new() -> Environment {
@@ -73,9 +121,22 @@ impl Environment {
         }
     }
 
-    pub fn set_function<F: Fn(Vec<Value>) -> Value + 'static>(&mut self, name: &str, f: F) {
-        let boxed: Rc<Fn(Vec<Value>) -> Value> = Rc::new(f);
-        self.bindings.insert(name.to_string(), Value::ForeignFn(ForeignFunction::new(name.to_string(), boxed)));
+    pub fn set_function<F>(&mut self, name: &str, f: F)
+    where F: Fn(&mut Iterator<Item=Value>) -> Value + 'static
+    {
+        let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> Value> = Rc::new(f);
+        self.bindings.insert(
+            name.to_string(),
+            Value::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed)));
+    }
+
+    pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
+    where F: Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value + 'static
+    {
+        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value> = Rc::new(f);
+        self.bindings.insert(
+            name.to_string(),
+            Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
     }
 }
 
@@ -108,22 +169,19 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
 
                     let param_names = match &*names {
                         &Value::List(ref v) => {
-                            items.map(|n| {
+                            let r: Vec<String> = v.iter().map(|n| {
                                 if let &Value::Ident(ref s) = n {
                                     (&**s).clone()
                                 } else {
                                     panic!("non ident param name");
                                 }
-                            }).collect()
+                            }).collect();
+                            r
                         }
                         _ => panic!("no param names list found for lambda")
                     };
 
-                    Value::Lambda(Procedure {
-                        body: Rc::new(body.clone()),
-                        param_names: param_names,
-                        environment: env.clone()
-                    })
+                    Value::Lambda(Procedure::new(Rc::new(body.clone()), param_names, env.clone()))
                 }
                 &Value::Ident(ref v) if &**v == "define" => {
                     let name: String = if let &Value::String(ref s) = items.next().unwrap() {
@@ -152,7 +210,10 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
                             eval(&procedure.body, &new_env)
                         }
                         Value::ForeignFn(ff) => {
-                            (ff.function)(items.map(|v| eval(v, env)).collect())
+                            match ff.function {
+                                FfType::FreeFn(ff) => (ff)(&mut items.map(|v| eval(v, env))),
+                                FfType::UnEvalFn(uef) => (uef)(&mut items, &|v| eval(v, env))
+                            }
                         }
                         x => panic!("{:?} is not executable", x)
                     }
