@@ -72,3 +72,23 @@ gen_num_method!(atanh, Value::Float);
 // sin_cos
 // atan2
 
+
+gen_num_method!(count_ones, Value::Int, Value::Int, |a| a as i64);
+gen_num_method!(count_zeros, Value::Int, Value::Int, |a| a as i64);
+gen_num_method!(leading_zeros, Value::Int, Value::Int, |a| a as i64);
+gen_num_method!(trailing_zeros, Value::Int, Value::Int, |a| a as i64);
+gen_num_method!(swap_bytes, Value::Int);
+gen_num_method!(to_be, Value::Int);
+gen_num_method!(to_le, Value::Int);
+gen_num_method!(abs, Value::Int);
+gen_num_method!(signum, Value::Int);
+gen_num_method!(is_positive, Value::Int, Value::Bool);
+gen_num_method!(is_negative, Value::Int, Value::Bool);
+
+// TODO:
+// rotate_left
+// checked_add
+// checked_sub
+// checked_mul
+// checked_div
+// pow
