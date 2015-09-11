@@ -17,7 +17,7 @@ fn read_from_tokens(tokens: &mut Vec<String>) -> Value {
         panic!("Unexpected EOF while reading");
     }
 
-    let mut token = tokens.remove(0);
+    let token = tokens.remove(0);
     if &token == "(" {
         let mut list = vec![];
         while &tokens[0] != ")" {
