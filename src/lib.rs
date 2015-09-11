@@ -7,7 +7,6 @@ pub mod stdlib;
 pub use tokenizer::parse;
 pub use eval::{Procedure, Environment, eval, ForeignFunction};
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     List(Rc<Vec<Value>>),
@@ -23,7 +22,6 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Error {
-    UnexpectedType{expected: String, found: String, at: u32, in_: String}
+    UnexpectedType{expected: String, found: String},
+    UnexpectedArity{expected: u16, found: u16}
 }
-
-
