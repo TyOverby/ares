@@ -7,17 +7,17 @@ use std::cell::RefCell;
 
 fn basic_environment() -> Rc<RefCell<Environment>> {
     let mut env = Environment::new();
-    env.set_function("+", stdlib::add_ints);
-    env.set_function("+.", stdlib::add_floats);
+    env.set_function("+", stdlib::arithmetic::add_ints);
+    env.set_function("+.", stdlib::arithmetic::add_floats);
 
-    env.set_function("-", stdlib::sub_ints);
-    env.set_function("-.", stdlib::sub_floats);
+    env.set_function("-", stdlib::arithmetic::sub_ints);
+    env.set_function("-.", stdlib::arithmetic::sub_floats);
 
-    env.set_function("*", stdlib::mul_ints);
-    env.set_function("*.", stdlib::mul_floats);
+    env.set_function("*", stdlib::arithmetic::mul_ints);
+    env.set_function("*.", stdlib::arithmetic::mul_floats);
 
-    env.set_function("/", stdlib::div_ints);
-    env.set_function("/.", stdlib::div_floats);
+    env.set_function("/", stdlib::arithmetic::div_ints);
+    env.set_function("/.", stdlib::arithmetic::div_floats);
     Rc::new(RefCell::new(env))
 }
 
