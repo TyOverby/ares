@@ -18,6 +18,12 @@ fn basic_environment() -> Rc<RefCell<Environment>> {
 
     env.set_function("/", stdlib::arithmetic::div_ints);
     env.set_function("/.", stdlib::arithmetic::div_floats);
+
+    env.set_uneval_function("quote", stdlib::core::quote);
+    env.set_uneval_function("if", stdlib::core::cond);
+    env.set_uneval_function("define", stdlib::core::define);
+    env.set_uneval_function("lambda", stdlib::core::lambda);
+
     Rc::new(RefCell::new(env))
 }
 

@@ -3,7 +3,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Value};
-use super::stdlib::core::{lambda, define, quote, cond};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -15,7 +14,7 @@ pub struct ForeignFunction {
 enum FfType{
     FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> Value>),
     //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value>)
+    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value>)
 }
 
 #[derive(Clone)]
@@ -42,7 +41,7 @@ impl ForeignFunction {
 
     fn new_uneval_function(
         name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value>) -> ForeignFunction
+        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value>) -> ForeignFunction
     {
         ForeignFunction {
             name: name,
@@ -137,9 +136,9 @@ impl Environment {
     }
 
     pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value + 'static
+    where F: Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value + 'static
     {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value> = Rc::new(f);
+        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
             Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
@@ -165,38 +164,23 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
 
         &Value::List(ref l) => {
             let mut items = l.iter();
-            match items.next().unwrap() {
-                &Value::Ident(ref v) if &**v == "quote" => {
-                    quote(&mut items, env, eval)
+            let head = items.next().unwrap();
+            match eval(head, env) {
+                Value::Lambda(procedure) => {
+                    let new_env = procedure.gen_env(items.map(|v| eval(v, env)));
+                    let mut last = None;
+                    for body in &*procedure.bodies {
+                        last = Some(eval(body, &new_env));
+                    }
+                    last.unwrap()
                 }
-                &Value::Ident(ref v) if &**v == "lambda" => {
-                    lambda(&mut items, env, eval)
-                }
-                &Value::Ident(ref v) if &**v == "define" => {
-                    define(&mut items, env, eval)
-                }
-                &Value::Ident(ref v) if &**v == "if" => {
-                    cond(&mut items, env, eval)
-                }
-                other => {
-                    match eval(other, env) {
-                        Value::Lambda(procedure) => {
-                            let new_env = procedure.gen_env(items.map(|v| eval(v, env)));
-                            let mut last = None;
-                            for body in &*procedure.bodies {
-                                last = Some(eval(body, &new_env));
-                            }
-                            last.unwrap()
-                        }
-                        Value::ForeignFn(ff) => {
-                            match ff.function {
-                                FfType::FreeFn(ff) => (ff)(&mut items.map(|v| eval(v, env))),
-                                FfType::UnEvalFn(uef) => (uef)(&mut items, eval)
-                            }
-                        }
-                        x => panic!("{:?} is not executable", x)
+                Value::ForeignFn(ff) => {
+                    match ff.function {
+                        FfType::FreeFn(ff) => (ff)(&mut items.map(|v| eval(v, env))),
+                        FfType::UnEvalFn(uef) => (uef)(&mut items, env, eval)
                     }
                 }
+                x => panic!("{:?} is not executable", x)
             }
         }
     }
