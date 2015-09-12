@@ -47,6 +47,17 @@ impl ForeignFunction {
             function: FfType::UnEvalFn(function)
         }
     }
+
+    fn to_usize(&self) -> usize {
+        match &self.function {
+            &FfType::FreeFn(ref rc) => {
+                rc_to_usize(rc)
+            }
+            &FfType::UnEvalFn(ref rc) => {
+                rc_to_usize(rc)
+            }
+        }
+    }
 }
 
 impl ::std::fmt::Debug for ForeignFunction {
@@ -55,34 +66,60 @@ impl ::std::fmt::Debug for ForeignFunction {
     }
 }
 
+fn rc_to_usize<T: ?Sized>(rc: &Rc<T>) -> usize {
+    use std::mem::transmute;
+    unsafe {transmute(&*rc)}
+}
+
 impl PartialEq for ForeignFunction {
     fn eq(&self, other: &ForeignFunction) -> bool {
-        use std::mem::transmute;
-        let a: *mut () = unsafe{ transmute(&self.function) };
-        let b: *mut () = unsafe{ transmute(&other.function) };
-        a == b
+        self.name == other.name &&
+        self.to_usize() == other.to_usize()
     }
 }
 
+impl Eq for ForeignFunction {}
 
 impl PartialEq for Procedure {
     fn eq(&self, other: &Procedure) -> bool {
-        use std::mem::transmute;
-        let a: *mut () = unsafe{ transmute(&self.bodies) };
-        let b: *mut () = unsafe{ transmute(&other.bodies) };
-
-        let c: *mut () = unsafe{ transmute(&self.environment) };
-        let d: *mut () = unsafe{ transmute(&other.environment) };
-
-        a == b && c == d
+        rc_to_usize(&self.bodies) == rc_to_usize(&other.bodies) &&
+        rc_to_usize(&self.environment) == rc_to_usize(&other.environment)
     }
 }
+
+impl Eq for Procedure {}
 
 impl ::std::fmt::Debug for Procedure {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
         fmt.write_str("<lambda>")
     }
 }
+
+fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
+    use std::mem::transmute;
+    unsafe {
+        if cfg!(target_pointer_width = "32") {
+            hasher.write(&transmute::<_, [u8; 4]>((v as u32)))
+        } else {
+            hasher.write(&transmute::<_, [u8; 8]>((v as u64)))
+        }
+    }
+}
+
+impl ::std::hash::Hash for ForeignFunction {
+    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+        write_usize(self.to_usize(), state);
+    }
+}
+
+impl ::std::hash::Hash for Procedure {
+    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+        write_usize(rc_to_usize(&self.bodies), state);
+        write_usize(rc_to_usize(&self.environment), state);
+    }
+}
+
+
 
 impl Procedure {
     pub fn new(bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
