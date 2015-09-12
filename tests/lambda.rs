@@ -15,26 +15,29 @@ fn basic() {
 #[test]
 fn nested() {
     assert_eq!(e(
-r"(((lambda (a b)
-    (lambda (c d)
-        (+ a b c d))) 1 2) 3 4)"),
-    Value::Int(10));
+        r"(((lambda (a b)
+            (lambda (c d)
+                (+ a b c d))) 1 2) 3 4)"),
+            Value::Int(10));
 }
 
 #[test]
 fn multi_body() {
     assert_eq!(e(
-r"(((lambda (a b)
-    5
-    (lambda (c d)
-        (+ a b c d))) 1 2) 3 4)"),
-               Value::Int(10));
+        r"(((lambda (a b)
+            5
+            (lambda (c d)
+                (+ a b c d))) 1 2) 3 4)"),
+        Value::Int(10));
 }
 
-/*
 #[test]
 fn recursive() {
-    assert_e1(e(
-r"(define sum (lambda ))"), Value::Int())
+    assert_eq!(e(
+        r"(define sum
+              (lambda (s)
+                  (if (= s 1)
+                      1
+                      (+ s (sum (- s 1))))))
+          (sum 4)"), Value::Int(10))
 }
-*/
