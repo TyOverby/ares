@@ -7,7 +7,7 @@ use util::*;
 
 
 #[test]
-fn basic_define() {
+fn global_define() {
     assert_eq!(
     e("(define x 5)
        (+ x 1)"), Value::Int(6));

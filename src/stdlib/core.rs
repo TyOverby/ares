@@ -5,8 +5,8 @@ use ::{Value, Environment, Procedure};
 
 
 pub fn lambda(args: &mut Iterator<Item=&Value>,
-             env: &Rc<RefCell<Environment>>,
-             _eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+              env: &Rc<RefCell<Environment>>,
+              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
     let names = args.next().unwrap();
     let bodies  = args.cloned().collect();
     let param_names = match names {
@@ -28,8 +28,8 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
 }
 
 pub fn define(args: &mut Iterator<Item=&Value>,
-             env: &Rc<RefCell<Environment>>,
-             eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+              env: &Rc<RefCell<Environment>>,
+              eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
     let name = match args.next().unwrap() {
         &Value::Ident(ref s) => (&**s).clone(),
         & ref other => panic!("define with no name: {:?}", other)
