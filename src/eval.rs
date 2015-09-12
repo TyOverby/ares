@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Value};
-use super::stdlib::core::{lambda, define, quote};
+use super::stdlib::core::{lambda, define, quote, cond};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -176,13 +176,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
                     define(&mut items, env, eval)
                 }
                 &Value::Ident(ref v) if &**v == "if" => {
-                    let true_cond = items.next().unwrap();
-                    let false_cond = items.next().unwrap();
-                    match eval(items.next().unwrap(), env) {
-                        Value::Bool(true) => eval(true_cond, env),
-                        Value::Bool(false) => eval(false_cond, env),
-                        _ => panic!("boolean expected in 'if'")
-                    }
+                    cond(&mut items, env, eval)
                 }
                 other => {
                     match eval(other, env) {

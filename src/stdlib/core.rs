@@ -55,3 +55,14 @@ pub fn quote(args: &mut Iterator<Item=&Value>,
     first
 }
 
+pub fn cond(args: &mut Iterator<Item=&Value>,
+            env: &Rc<RefCell<Environment>>,
+            eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+    let true_cond = args.next().unwrap();
+    let false_cond = args.next().unwrap();
+    match eval(args.next().unwrap(), env) {
+        Value::Bool(true) => eval(true_cond, env),
+        Value::Bool(false) => eval(false_cond, env),
+        _ => panic!("boolean expected in 'if'")
+    }
+}
