@@ -3,6 +3,22 @@ use std::cell::RefCell;
 
 use ::{Value, Environment, Procedure};
 
+pub fn equals(args: &mut Iterator<Item=Value>) -> Value {
+    let first = args.next().unwrap();
+    let mut seen_2 = false;
+    for next in args {
+        seen_2 = true;
+        if next != first {
+            return Value::Bool(false)
+        }
+    }
+
+    if !seen_2 {
+        panic!("equals must have at least two args")
+    }
+
+    Value::Bool(true)
+}
 
 pub fn lambda(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
@@ -58,11 +74,12 @@ pub fn quote(args: &mut Iterator<Item=&Value>,
 pub fn cond(args: &mut Iterator<Item=&Value>,
             env: &Rc<RefCell<Environment>>,
             eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
-    let true_cond = args.next().unwrap();
-    let false_cond = args.next().unwrap();
-    match eval(args.next().unwrap(), env) {
-        Value::Bool(true) => eval(true_cond, env),
-        Value::Bool(false) => eval(false_cond, env),
+    let cond = args.next().unwrap();
+    let true_branch = args.next().unwrap();
+    let false_branch = args.next().unwrap();
+    match eval(cond, env) {
+        Value::Bool(true) => eval(true_branch, env),
+        Value::Bool(false) => eval(false_branch, env),
         _ => panic!("boolean expected in 'if'")
     }
 }

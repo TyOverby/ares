@@ -7,6 +7,7 @@ use std::cell::RefCell;
 
 fn basic_environment() -> Rc<RefCell<Environment>> {
     let mut env = Environment::new();
+    env.set_function("=", stdlib::core::equals);
     env.set_function("+", stdlib::arithmetic::add_ints);
     env.set_function("+.", stdlib::arithmetic::add_floats);
 
