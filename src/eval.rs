@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Value};
-use super::stdlib::core::{lambda, define};
+use super::stdlib::core::{lambda, define, quote};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -167,7 +167,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
             let mut items = l.iter();
             match items.next().unwrap() {
                 &Value::Ident(ref v) if &**v == "quote" => {
-                    items.next().unwrap().clone()
+                    quote(&mut items, env, eval)
                 }
                 &Value::Ident(ref v) if &**v == "lambda" => {
                     lambda(&mut items, env, eval)

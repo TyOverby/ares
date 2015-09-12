@@ -44,3 +44,14 @@ pub fn define(args: &mut Iterator<Item=&Value>,
     env.borrow_mut().insert(name, result.clone());
     result
 }
+
+pub fn quote(args: &mut Iterator<Item=&Value>,
+              _env: &Rc<RefCell<Environment>>,
+              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+    let first = args.next().unwrap().clone();
+    if args.next().is_some() {
+        panic!("Multiple arguments to quote");
+    }
+    first
+}
+
