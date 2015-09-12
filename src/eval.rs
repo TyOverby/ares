@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use super::{Value};
+use super::stdlib::core::{lambda, define};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -14,18 +15,20 @@ pub struct ForeignFunction {
 enum FfType{
     FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> Value>),
     //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value>)
+    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value>)
 }
 
 #[derive(Clone)]
 pub struct Procedure {
-    pub body: Rc<Value>,
+    pub bodies: Rc<Vec<Value>>,
     param_names: Vec<String>, // TODO: allow this to also be a single identifier for varargs
-    environment: Rc<RefCell<Environment>>
+    environment: Env
 }
 
+pub type Env = Rc<RefCell<Environment>>;
+
 pub struct Environment {
-    parent: Option<Rc<RefCell<Environment>>>,
+    parent: Option<Env>,
     bindings: HashMap<String, Value>
 }
 
@@ -39,7 +42,7 @@ impl ForeignFunction {
 
     fn new_uneval_function(
         name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value>) -> ForeignFunction
+        function: Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value>) -> ForeignFunction
     {
         ForeignFunction {
             name: name,
@@ -67,8 +70,8 @@ impl PartialEq for ForeignFunction {
 impl PartialEq for Procedure {
     fn eq(&self, other: &Procedure) -> bool {
         use std::mem::transmute;
-        let a: *mut () = unsafe{ transmute(&self.body) };
-        let b: *mut () = unsafe{ transmute(&other.body) };
+        let a: *mut () = unsafe{ transmute(&self.bodies) };
+        let b: *mut () = unsafe{ transmute(&other.bodies) };
 
         let c: *mut () = unsafe{ transmute(&self.environment) };
         let d: *mut () = unsafe{ transmute(&other.environment) };
@@ -84,9 +87,9 @@ impl ::std::fmt::Debug for Procedure {
 }
 
 impl Procedure {
-    fn new(body: Rc<Value>, param_names: Vec<String>, env: Rc<RefCell<Environment>>) -> Procedure {
+    pub fn new(bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
         Procedure {
-            body: body,
+            bodies: bodies,
             param_names: param_names,
             environment: env
         }
@@ -120,6 +123,10 @@ impl Environment {
         }
     }
 
+    pub fn insert(&mut self, name: String, value: Value) -> Option<Value> {
+        self.bindings.insert(name, value)
+    }
+
     pub fn set_function<F>(&mut self, name: &str, f: F)
     where F: Fn(&mut Iterator<Item=Value>) -> Value + 'static
     {
@@ -130,9 +137,9 @@ impl Environment {
     }
 
     pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value + 'static
+    where F: Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value + 'static
     {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &FnMut(&Value) -> Value) -> Value> = Rc::new(f);
+        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, fn(&Value, &Env) -> Value) -> Value> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
             Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
@@ -163,35 +170,10 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
                     items.next().unwrap().clone()
                 }
                 &Value::Ident(ref v) if &**v == "lambda" => {
-                    let names = items.next().unwrap();
-                    let body  = items.next().unwrap();
-
-                    let param_names = match &*names {
-                        &Value::List(ref v) => {
-                            let r: Vec<String> = v.iter().map(|n| {
-                                if let &Value::Ident(ref s) = n {
-                                    (&**s).clone()
-                                } else {
-                                    panic!("non ident param name");
-                                }
-                            }).collect();
-                            r
-                        }
-                        _ => panic!("no param names list found for lambda")
-                    };
-
-                    Value::Lambda(Procedure::new(Rc::new(body.clone()), param_names, env.clone()))
+                    lambda(&mut items, env, eval)
                 }
                 &Value::Ident(ref v) if &**v == "define" => {
-                    let name: String = if let &Value::String(ref s) = items.next().unwrap() {
-                        (&**s).clone()
-                    } else {
-                        panic!("define with no name");
-                    };
-                    let value = items.next().unwrap();
-                    let result = eval(value, env);
-                    env.borrow_mut().bindings.insert(name, result.clone());
-                    result
+                    define(&mut items, env, eval)
                 }
                 &Value::Ident(ref v) if &**v == "if" => {
                     let true_cond = items.next().unwrap();
@@ -206,12 +188,16 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
                     match eval(other, env) {
                         Value::Lambda(procedure) => {
                             let new_env = procedure.gen_env(items.map(|v| eval(v, env)));
-                            eval(&procedure.body, &new_env)
+                            let mut last = None;
+                            for body in &*procedure.bodies {
+                                last = Some(eval(body, &new_env));
+                            }
+                            last.unwrap()
                         }
                         Value::ForeignFn(ff) => {
                             match ff.function {
                                 FfType::FreeFn(ff) => (ff)(&mut items.map(|v| eval(v, env))),
-                                FfType::UnEvalFn(uef) => (uef)(&mut items, &|v| eval(v, env))
+                                FfType::UnEvalFn(uef) => (uef)(&mut items, eval)
                             }
                         }
                         x => panic!("{:?} is not executable", x)

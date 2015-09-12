@@ -7,9 +7,13 @@ fn tokenize(s: &str) -> Vec<String> {
     s.replace("(", " ( ").replace(")", " ) ").split_whitespace().map(|s| s.to_string()).collect()
 }
 
-pub fn parse(input: &str) -> Value {
+pub fn parse(input: &str) -> Vec<Value> {
     let mut tokens = tokenize(input);
-    read_from_tokens(&mut tokens)
+    let mut v = vec![];
+    while !tokens.is_empty() {
+        v.push(read_from_tokens(&mut tokens))
+    }
+    v
 }
 
 fn read_from_tokens(tokens: &mut Vec<String>) -> Value {

@@ -22,5 +22,11 @@ fn basic_environment() -> Rc<RefCell<Environment>> {
 }
 
 pub fn e(program: &str) -> Value {
-    eval(&parse(program), &basic_environment())
+    let trees = parse(program);
+    let mut env = basic_environment();
+    let mut last = None;
+    for tree in trees {
+        last = Some(eval(&tree, &mut env))
+    }
+    last.expect("no program found")
 }
