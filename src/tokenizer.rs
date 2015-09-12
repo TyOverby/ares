@@ -38,8 +38,16 @@ fn read_from_tokens(tokens: &mut Vec<String>) -> Value {
 
 fn atom(s: String) -> Value {
     //TODO: handle everything other than ints :P
-    match s.parse() {
-        Ok(i) => Value::Int(i),
-        Err(_) => Value::Ident(Rc::new(s))
+    match (s.parse(), s.parse(), s.parse(), s) {
+        (Ok(i), _, _, _) => Value::Int(i),
+        (_, Ok(f), _, _) => Value::Float(f),
+        (_, _, Ok(b), _) => Value::Bool(b),
+        (_, _, _, s) => {
+            if s.starts_with("\"") {
+                Value::String(Rc::new(s[1..s.len()-1].to_string()))
+            } else {
+                Value::Ident(Rc::new(s))
+            }
+        }
     }
 }

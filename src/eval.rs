@@ -25,7 +25,6 @@ pub struct Procedure {
 }
 
 pub type Env = Rc<RefCell<Environment>>;
-
 pub struct Environment {
     parent: Option<Env>,
     bindings: HashMap<String, Value>
