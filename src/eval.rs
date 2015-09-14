@@ -158,6 +158,32 @@ impl Environment {
         }
     }
 
+    pub fn with_value<F, R>(&self, name: &str, function: F) -> Option<R>
+    where F: FnOnce(&Value) -> R
+    {
+        if self.bindings.contains_key(name) {
+            Some(function(&self.bindings[name]))
+        } else if let Some(ref p) = self.parent {
+            let lock = p.borrow();
+            lock.with_value(name, function)
+        } else {
+            None
+        }
+    }
+
+    pub fn with_value_mut<F, R>(&mut self, name: &str, function: F) -> Option<R>
+    where F: FnOnce(&mut Value) -> R
+    {
+        if self.bindings.contains_key(name) {
+            Some(function(self.bindings.get_mut(name).unwrap()))
+        } else if let Some(ref p) = self.parent {
+            let mut lock = p.borrow_mut();
+            lock.with_value_mut(name, function)
+        } else {
+            None
+        }
+    }
+
     pub fn insert(&mut self, name: String, value: Value) -> Option<Value> {
         self.bindings.insert(name, value)
     }
@@ -194,13 +220,17 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
         &Value::Ident(ref ident) => {
             match env.borrow().get(&ident) {
                 Some(v) => Ok(v),
-                None => panic!("Variable {} not found", ident)
+                None => Err(AresError::UndefinedName((**ident).clone()))
             }
         }
 
         &Value::List(ref l) => {
             let mut items = l.iter();
-            let head = items.next().unwrap();
+            let head = match items.next() {
+                Some(h) => h,
+                None => return Err(AresError::ExecuteEmptyList)
+            };
+
             match try!(eval(head, env)) {
                 Value::Lambda(procedure) => {
                     let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
@@ -210,7 +240,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                     for body in &*procedure.bodies {
                         last = Some(try!(eval(body, &new_env)));
                     }
-                    Ok(last.unwrap())
+                    last.ok_or(AresError::NoLambdaBody)
                 }
                 Value::ForeignFn(ff) => {
                     match ff.function {
@@ -222,7 +252,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                         FfType::UnEvalFn(uef) => (uef)(&mut items, env, eval)
                     }
                 }
-                x => panic!("{:?} is not executable", x)
+                x => Err(AresError::UnexecutableValue(x))
             }
         }
     }
