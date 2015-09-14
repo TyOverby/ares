@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::{Value, AresError, AresResult};
+use super::{Value, AresError, AresResult, rc_to_usize, write_usize};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -66,11 +66,6 @@ impl ::std::fmt::Debug for ForeignFunction {
     }
 }
 
-fn rc_to_usize<T: ?Sized>(rc: &Rc<T>) -> usize {
-    use std::mem::transmute;
-    unsafe {transmute(&*rc)}
-}
-
 impl PartialEq for ForeignFunction {
     fn eq(&self, other: &ForeignFunction) -> bool {
         self.name == other.name &&
@@ -92,17 +87,6 @@ impl Eq for Procedure {}
 impl ::std::fmt::Debug for Procedure {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
         fmt.write_str("<lambda>")
-    }
-}
-
-fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
-    use std::mem::transmute;
-    unsafe {
-        if cfg!(target_pointer_width = "32") {
-            hasher.write(&transmute::<_, [u8; 4]>((v as u32)))
-        } else {
-            hasher.write(&transmute::<_, [u8; 8]>((v as u64)))
-        }
     }
 }
 

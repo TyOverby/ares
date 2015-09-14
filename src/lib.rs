@@ -49,6 +49,34 @@ impl PartialEq for Value {
 
 impl Eq for Value {}
 
-// TODO: Ty, work on implementing Hash for this!
+impl std::hash::Hash for Value {
+    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+        use std::mem::transmute;
+        match self {
+            &Value::List(ref rc) => write_usize(rc_to_usize(rc), state),
+            &Value::String(ref rc) => write_usize(rc_to_usize(rc), state),
+            &Value::Float(f) => unsafe { state.write(&transmute::<_, [u8; 8]>(f)) },
+            &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
+            &Value::Bool(b) => state.write(&[if b {1} else {0}]),
+            &Value::Ident(ref rc) => write_usize(rc_to_usize(rc), state),
+            &Value::ForeignFn(ref ff) => ff.hash(state),
+            &Value::Lambda(ref p) => p.hash(state),
+        }
+    }
+}
 
+fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
+    use std::mem::transmute;
+    unsafe {
+        if cfg!(target_pointer_width = "32") {
+            hasher.write(&transmute::<_, [u8; 4]>((v as u32)))
+        } else {
+            hasher.write(&transmute::<_, [u8; 8]>((v as u64)))
+        }
+    }
+}
 
+fn rc_to_usize<T: ?Sized>(rc: &Rc<T>) -> usize {
+    use std::mem::transmute;
+    unsafe {transmute(&*rc)}
+}
