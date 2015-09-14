@@ -22,7 +22,7 @@ pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
 
 pub fn lambda(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
-              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+              _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let names = args.next().unwrap();
     let bodies  = args.cloned().collect();
     let param_names = match names {
@@ -45,7 +45,7 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
 
 pub fn define(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
-              eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+              eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let name = match args.next().unwrap() {
         &Value::Ident(ref s) => (&**s).clone(),
         & ref other => panic!("define with no name: {:?}", other)
@@ -63,7 +63,7 @@ pub fn define(args: &mut Iterator<Item=&Value>,
 
 pub fn quote(args: &mut Iterator<Item=&Value>,
               _env: &Rc<RefCell<Environment>>,
-              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+              _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let first = args.next().unwrap().clone();
     if args.next().is_some() {
         panic!("Multiple arguments to quote");
@@ -73,7 +73,7 @@ pub fn quote(args: &mut Iterator<Item=&Value>,
 
 pub fn cond(args: &mut Iterator<Item=&Value>,
             env: &Rc<RefCell<Environment>>,
-            eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+            eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let cond = args.next().unwrap();
     let true_branch = args.next().unwrap();
     let false_branch = args.next().unwrap();

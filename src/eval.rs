@@ -14,7 +14,7 @@ pub struct ForeignFunction {
 enum FfType{
     FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>),
     //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
+    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
 }
 
 #[derive(Clone)]
@@ -40,7 +40,7 @@ impl ForeignFunction {
 
     fn new_uneval_function(
         name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
+        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
     {
         ForeignFunction {
             name: name,
@@ -198,9 +198,9 @@ impl Environment {
     }
 
     pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
+    where F: Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
     {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
+        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
             Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
@@ -249,7 +249,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                             let evald = try!(evald);
                             (ff)(&mut evald.into_iter())
                         }
-                        FfType::UnEvalFn(uef) => (uef)(&mut items, env, eval)
+                        FfType::UnEvalFn(uef) => (uef)(&mut items, env, &|v, e| eval(v, e))
                     }
                 }
                 x => Err(AresError::UnexecutableValue(x))
