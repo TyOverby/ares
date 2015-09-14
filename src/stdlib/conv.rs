@@ -1,18 +1,18 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use ::Value;
+use ::{Value, AresResult, AresError};
 
-fn to_int(value: Value) -> Value {
+fn to_int(value: Value) -> AresResult<Value> {
      match value {
-         Value::Int(i) => Value::Int(i),
-         Value::Float(f) => Value::Int(f as i64),
-         Value::Bool(b) => Value::Int(if b {1} else {0}),
-         Value::String(s) => Value::Int(s.parse().unwrap()),
-         Value::List(_) => panic!("can not convert a list to an int"),
-         Value::ForeignFn(_) => panic!("can not convert a foreign function to an int"),
-         Value::Lambda(_) => panic!("can not convert a lambda to an int"),
-         Value::Ident(_) => unreachable!(),
+         Value::Int(i) => Ok(Value::Int(i)),
+         Value::Float(f) => Ok(Value::Int(f as i64)),
+         Value::Bool(b) => Ok(Value::Int(if b {1} else {0})),
+         Value::String(s) => Ok(Value::Int(s.parse().unwrap())),
+         other => Err(AresError::IllegalConversion {
+             value: other,
+             into: "Int".to_string()
+         })
      }
 }
 
@@ -21,11 +21,10 @@ fn to_float(value: Value) -> Value {
          Value::Int(i) => Value::Float(i as f64),
          Value::Float(f) => Value::Float(f),
          Value::String(s) => Value::Float(s.parse().unwrap()),
-         Value::Bool(b) => panic!("can not convert a boolean to a float"),
-         Value::List(_) => panic!("can not convert a list to a float"),
-         Value::ForeignFn(_) => panic!("can not convert a foreign function to a float"),
-         Value::Lambda(_) => panic!("can not convert a lambda to a float"),
-         Value::Ident(_) => panic!("can not convert an identifier to a float")
+         other => Err(AresError::IllegalConversion {
+             value: other,
+             into: "Float".to_string()
+         })
      }
 }
 

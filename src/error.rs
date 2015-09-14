@@ -9,6 +9,7 @@ pub enum AresError {
     UnexecutableValue(Value),
     ExecuteEmptyList,
     NoLambdaBody,
-    UnexpectedArity{found: u16, expected: String}
+    UnexpectedArity{found: u16, expected: String},
+    IllegalConversion{value: Value, into: String}
 }
 
