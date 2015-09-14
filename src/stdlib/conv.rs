@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
 
-pub fn to_int(value: Value) -> AresResult<Value> {
-     match value {
+pub fn to_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+     match values.next().unwrap() {
          Value::Int(i) => Ok(Value::Int(i)),
          Value::Float(f) => Ok(Value::Int(f as i64)),
          Value::Bool(b) => Ok(Value::Int(if b {1} else {0})),
@@ -16,8 +16,8 @@ pub fn to_int(value: Value) -> AresResult<Value> {
      }
 }
 
-pub fn to_float(value: Value) -> AresResult<Value> {
-     match value {
+pub fn to_float(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+     match values.next().unwrap() {
          Value::Int(i) => Ok(Value::Float(i as f64)),
          Value::Float(f) => Ok(Value::Float(f)),
          Value::String(s) => Ok(Value::Float(s.parse().unwrap())),
@@ -28,8 +28,35 @@ pub fn to_float(value: Value) -> AresResult<Value> {
      }
 }
 
-pub fn to_string(value: Value) -> Value {
-    Value::String(Rc::new(as_str(&value)))
+pub fn to_bool(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+     match values.next().unwrap() {
+         Value::Int(0) => Ok(Value::Bool(false)),
+         Value::Int(_) => Ok(Value::Bool(true)),
+         Value::Float(0.0) => Ok(Value::Bool(false)),
+         Value::Float(_) => Ok(Value::Bool(true)),
+         Value::String(s) => {
+             if &**s == "true" {
+                 Ok(Value::Bool(true))
+             } else if &**s == "false" {
+                 Ok(Value::Bool(false))
+             } else {
+                 Err(AresError::IllegalConversion{
+                     value: Value::String(s),
+                     into: "Bool".to_string()
+                 })
+             }
+         }
+         other => Err(AresError::IllegalConversion {
+             value: other,
+             into: "Bool".to_string()
+         })
+     }
+}
+
+pub fn to_string(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+    let first = values.next().unwrap();
+    let s = as_str(&first);
+    Ok(Value::String(Rc::new(s)))
 }
 
 fn as_str(value: &Value) -> String {
