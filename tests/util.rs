@@ -1,6 +1,6 @@
-extern crate rebar;
+extern crate ares;
 
-use ::rebar::*;
+use ::ares::*;
 
 use std::rc::Rc;
 use std::cell::RefCell;

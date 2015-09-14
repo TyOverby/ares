@@ -1,8 +1,8 @@
-extern crate rebar;
+extern crate ares;
 
 mod util;
 
-use rebar::*;
+use ares::*;
 use util::*;
 
 

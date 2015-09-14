@@ -1,4 +1,6 @@
 [package]
-name = "rebar"
+name = "ares"
 version = "0.1.0"
 authors = ["Ty Overby <ty@pre-alpha.com>"]
+license = "MIT"
+description = "A lispy language with a focus on great embeddability"

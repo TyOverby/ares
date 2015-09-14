@@ -1,10 +1,10 @@
-extern crate rebar;
+extern crate ares;
 
 mod util;
 
 use std::rc::Rc;
 
-use rebar::*;
+use ares::*;
 use util::*;
 
 #[test]
