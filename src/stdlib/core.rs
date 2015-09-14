@@ -1,15 +1,15 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Environment, Procedure};
+use ::{Value, Environment, Procedure, AresResult};
 
-pub fn equals(args: &mut Iterator<Item=Value>) -> Value {
+pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     let first = args.next().unwrap();
     let mut seen_2 = false;
     for next in args {
         seen_2 = true;
         if next != first {
-            return Value::Bool(false)
+            return Ok(Value::Bool(false))
         }
     }
 
@@ -17,12 +17,12 @@ pub fn equals(args: &mut Iterator<Item=Value>) -> Value {
         panic!("equals must have at least two args")
     }
 
-    Value::Bool(true)
+    Ok(Value::Bool(true))
 }
 
 pub fn lambda(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
-              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let names = args.next().unwrap();
     let bodies  = args.cloned().collect();
     let param_names = match names {
@@ -39,13 +39,13 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
         _ => panic!("no param names list found for lambda")
     };
 
-    Value::Lambda(Procedure::new(Rc::new(bodies),
-                                 param_names, env.clone()))
+    Ok(Value::Lambda(Procedure::new(Rc::new(bodies),
+                                    param_names, env.clone())))
 }
 
 pub fn define(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
-              eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+              eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let name = match args.next().unwrap() {
         &Value::Ident(ref s) => (&**s).clone(),
         & ref other => panic!("define with no name: {:?}", other)
@@ -56,28 +56,28 @@ pub fn define(args: &mut Iterator<Item=&Value>,
         panic!("define with more than 2 args");
     }
 
-    let result = eval(value, env);
+    let result = try!(eval(value, env));
     env.borrow_mut().insert(name, result.clone());
-    result
+    Ok(result)
 }
 
 pub fn quote(args: &mut Iterator<Item=&Value>,
               _env: &Rc<RefCell<Environment>>,
-              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+              _eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let first = args.next().unwrap().clone();
     if args.next().is_some() {
         panic!("Multiple arguments to quote");
     }
-    first
+    Ok(first)
 }
 
 pub fn cond(args: &mut Iterator<Item=&Value>,
             env: &Rc<RefCell<Environment>>,
-            eval: fn(&Value, &Rc<RefCell<Environment>>) -> Value) -> Value {
+            eval: fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let cond = args.next().unwrap();
     let true_branch = args.next().unwrap();
     let false_branch = args.next().unwrap();
-    match eval(cond, env) {
+    match try!(eval(cond, env)) {
         Value::Bool(true) => eval(true_branch, env),
         Value::Bool(false) => eval(false_branch, env),
         _ => panic!("boolean expected in 'if'")

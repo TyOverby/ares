@@ -3,9 +3,11 @@ use std::rc::Rc;
 mod tokenizer;
 mod eval;
 pub mod stdlib;
+mod error;
 
 pub use tokenizer::parse;
 pub use eval::{Procedure, Environment, eval, ForeignFunction};
+pub use error::{AresError, AresResult};
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -50,8 +52,3 @@ impl Eq for Value {}
 // TODO: Ty, work on implementing Hash for this!
 
 
-#[derive(Debug)]
-pub enum Error {
-    UnexpectedType{expected: String, found: String},
-    UnexpectedArity{expected: u16, found: u16}
-}

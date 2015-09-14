@@ -1,4 +1,4 @@
-use ::Value;
+use ::{Value, AresResult};
 
 macro_rules! gen_num_method {
     ($name: ident, $v: path) => {
@@ -8,7 +8,7 @@ macro_rules! gen_num_method {
         gen_num_method!($name, $inv, $outv, |a| a);
     };
     ($name: ident, $inv: path, $outv: path, $conv: expr) => {
-        pub fn $name(it: &mut Iterator<Item=Value>) -> Value {
+        pub fn $name(it: &mut Iterator<Item=Value>) -> AresResult<Value> {
             let value = match it.next() {
                 Some($inv(v)) => $outv($conv(v.$name())),
                 Some(_) => panic!("unexpected math arg"),
@@ -17,7 +17,7 @@ macro_rules! gen_num_method {
             if it.next().is_some() {
                 panic!("too many arguments");
             }
-            value
+            Ok(value)
         }
     }
 }

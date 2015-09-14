@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use super::{Value};
+use super::{Value, AresError, AresResult};
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -12,9 +12,9 @@ pub struct ForeignFunction {
 
 #[derive(Clone)]
 enum FfType{
-    FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> Value>),
+    FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>),
     //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value>)
+    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
 }
 
 #[derive(Clone)]
@@ -31,7 +31,7 @@ pub struct Environment {
 }
 
 impl ForeignFunction {
-    fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> Value>) -> ForeignFunction {
+    fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>) -> ForeignFunction {
         ForeignFunction {
             name: name,
             function: FfType::FreeFn(function)
@@ -40,7 +40,7 @@ impl ForeignFunction {
 
     fn new_uneval_function(
         name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value>) -> ForeignFunction
+        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
     {
         ForeignFunction {
             name: name,
@@ -163,37 +163,37 @@ impl Environment {
     }
 
     pub fn set_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=Value>) -> Value + 'static
+    where F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
     {
-        let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> Value> = Rc::new(f);
+        let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
             Value::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed)));
     }
 
     pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value + 'static
+    where F: Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
     {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> Value) -> Value> = Rc::new(f);
+        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
             Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
     }
 }
 
-pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
+pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
     match value {
-        &ref v@Value::String(_) => v.clone(),
-        &ref v@Value::Int(_) => v.clone(),
-        &ref v@Value::Float(_) => v.clone(),
-        &ref v@Value::Bool(_) => v.clone(),
+        &ref v@Value::String(_) => Ok(v.clone()),
+        &ref v@Value::Int(_) => Ok(v.clone()),
+        &ref v@Value::Float(_) => Ok(v.clone()),
+        &ref v@Value::Bool(_) => Ok(v.clone()),
 
-        &ref v@Value::ForeignFn(_) => v.clone(),
-        &ref v@Value::Lambda(_) => v.clone(),
+        &ref v@Value::ForeignFn(_) => Ok(v.clone()),
+        &ref v@Value::Lambda(_) => Ok(v.clone()),
 
         &Value::Ident(ref ident) => {
             match env.borrow().get(&ident) {
-                Some(env) => env,
+                Some(v) => Ok(v),
                 None => panic!("Variable {} not found", ident)
             }
         }
@@ -201,18 +201,24 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> Value {
         &Value::List(ref l) => {
             let mut items = l.iter();
             let head = items.next().unwrap();
-            match eval(head, env) {
+            match try!(eval(head, env)) {
                 Value::Lambda(procedure) => {
-                    let new_env = procedure.gen_env(items.map(|v| eval(v, env)));
+                    let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
+                    let evald = try!(evald);
+                    let new_env = procedure.gen_env(evald.into_iter());
                     let mut last = None;
                     for body in &*procedure.bodies {
-                        last = Some(eval(body, &new_env));
+                        last = Some(try!(eval(body, &new_env)));
                     }
-                    last.unwrap()
+                    Ok(last.unwrap())
                 }
                 Value::ForeignFn(ff) => {
                     match ff.function {
-                        FfType::FreeFn(ff) => (ff)(&mut items.map(|v| eval(v, env))),
+                        FfType::FreeFn(ff) => {
+                            let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
+                            let evald = try!(evald);
+                            (ff)(&mut evald.into_iter())
+                        }
                         FfType::UnEvalFn(uef) => (uef)(&mut items, env, eval)
                     }
                 }

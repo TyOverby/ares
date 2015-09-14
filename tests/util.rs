@@ -33,7 +33,7 @@ pub fn e(program: &str) -> Value {
     let mut env = basic_environment();
     let mut last = None;
     for tree in trees {
-        last = Some(eval(&tree, &mut env))
+        last = Some(eval(&tree, &mut env).unwrap())
     }
     last.expect("no program found")
 }
