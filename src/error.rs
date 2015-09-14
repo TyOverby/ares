@@ -8,7 +8,7 @@ pub enum AresError {
     UndefinedName(String),
     UnexecutableValue(Value),
     ExecuteEmptyList,
-    NoLambdaBody
-    //UnexpectedArity{expected: u16, found: u16}
+    NoLambdaBody,
+    UnexpectedArity{found: u16, expected: String}
 }
 

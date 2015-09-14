@@ -15,11 +15,11 @@ macro_rules! gen_fold {
                 });
             }
         }
-        Ok($var($extr(cur)))
+        Ok($var(try!($extr(cur))))
         }
     };
     ($args: expr, $default: expr, $var: path, $op: expr) => {
-        gen_fold!($args, $default, $var, $op, |a| a)
+        gen_fold!($args, $default, $var, $op, |a| Ok(a))
     }
 }
 
@@ -41,7 +41,15 @@ pub fn sub_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
         } else {
             *acc = Some((true, -v))
         }
-    }, |a: Option<(bool, i64)>| a.expect("subtraction expects at least one value").1)
+    }, |a: Option<(bool, i64)>| {
+        match a {
+            Some((_, r)) => Ok(r),
+            None => Err(AresError::UnexpectedArity {
+                found: 0,
+                expected: "at least 1".into()
+            })
+        }
+    })
 }
 
 pub fn sub_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
@@ -54,7 +62,15 @@ pub fn sub_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
         } else {
             *acc = Some((true, -v))
         }
-    }, |a: Option<(bool, f64)>| a.expect("subtraction expects at least one value").1)
+    }, |a: Option<(bool, f64)>| {
+        match a {
+            Some((_, r)) => Ok(r),
+            None => Err(AresError::UnexpectedArity {
+                found: 0,
+                expected: "at least 1".into()
+            })
+        }
+    })
 }
 
 pub fn mul_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
@@ -72,7 +88,15 @@ pub fn div_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
         } else {
             *acc = Some(v)
         }
-    }, |a: Option<i64>| a.expect("subtraction expects at least one value"))
+    }, |a: Option<i64>| {
+        match a {
+            Some(r) => Ok(r),
+            None => Err(AresError::UnexpectedArity {
+                found: 0,
+                expected: "at least 1".into()
+            })
+        }
+    })
 }
 
 pub fn div_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
@@ -85,7 +109,10 @@ pub fn concat(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
         if let Value::String(s) = v {
             buffer.push_str(&s)
         } else {
-            panic!("concat can't concatenate non-strings");
+            return Err(AresError::UnexpectedType {
+                value: v,
+                expected: "Value::String".into()
+            })
         }
     }
 
