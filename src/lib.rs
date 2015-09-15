@@ -58,9 +58,9 @@ gen_from!(f64, Value::Float);
 
 gen_from!(bool, Value::Bool);
 
-gen_from!(String, Value::String, |a| Rc::new(a));
+gen_from!(String, Value::String, Rc::new);
 
-gen_from!(Vec<Value>, Value::List, |a| Rc::new(a));
+gen_from!(Vec<Value>, Value::List, Rc::new);
 
 impl <'a> From<&'a str> for Value {
     fn from(x: &'a str) -> Value {
@@ -73,10 +73,6 @@ impl <'a> From<&'a str> for Value {
 impl PartialEq for Value {
     fn eq(&self, other: &Value) -> bool {
         use ::Value::*;
-        fn rc_to_usize<T: ?Sized>(rc: &Rc<T>) -> usize {
-            use std::mem::transmute;
-            unsafe {transmute(&*rc)}
-        }
 
         match (self, other) {
             (&List(ref rc1), &List(ref rc2)) =>
