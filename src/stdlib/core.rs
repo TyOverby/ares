@@ -39,8 +39,12 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
         _ => panic!("no param names list found for lambda")
     };
 
-    Ok(Value::Lambda(Procedure::new(Rc::new(bodies),
-                                    param_names, env.clone())))
+    Ok(Value::Lambda(
+            Procedure::new(
+                None,
+                Rc::new(bodies),
+                param_names,
+                env.clone())))
 }
 
 pub fn define(args: &mut Iterator<Item=&Value>,

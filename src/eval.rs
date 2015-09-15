@@ -19,6 +19,7 @@ enum FfType{
 
 #[derive(Clone)]
 pub struct Procedure {
+    pub name: Option<String>,
     pub bodies: Rc<Vec<Value>>,
     param_names: Vec<String>, // TODO: allow this to also be a single identifier for varargs
     environment: Env
@@ -106,8 +107,9 @@ impl ::std::hash::Hash for Procedure {
 
 
 impl Procedure {
-    pub fn new(bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
+    pub fn new(name: Option<String>, bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
         Procedure {
+            name: name,
             bodies: bodies,
             param_names: param_names,
             environment: env

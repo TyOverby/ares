@@ -33,6 +33,7 @@ pub fn to_bool(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
          Value::Int(0) => Ok(Value::Bool(false)),
          Value::Int(_) => Ok(Value::Bool(true)),
          Value::Float(0.0) => Ok(Value::Bool(false)),
+         Value::Bool(b) => Ok(Value::Bool(b)),
          Value::Float(_) => Ok(Value::Bool(true)),
          Value::String(s) => {
              if &**s == "true" {
@@ -55,11 +56,11 @@ pub fn to_bool(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
 
 pub fn to_string(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
     let first = values.next().unwrap();
-    let s = as_str(&first);
+    let s = to_string_helper(&first);
     Ok(Value::String(Rc::new(s)))
 }
 
-fn as_str(value: &Value) -> String {
+fn to_string_helper(value: &Value) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),
@@ -86,7 +87,7 @@ fn as_str(value: &Value) -> String {
                         }
                     }
                     other => {
-                        buf.push_str(&as_str(&other))
+                        buf.push_str(&to_string_helper(&other))
                     }
                 }
             }
@@ -96,8 +97,8 @@ fn as_str(value: &Value) -> String {
             build_buf(&l, &mut inner, &mut seen);
             inner
         }
-        &Value::ForeignFn(_) => panic!("can not convert a foreign function to an int"),
-        &Value::Lambda(_) => panic!("can not convert a lambda to an int"),
-        &Value::Ident(_) => unreachable!(),
+        &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
+        &Value::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        &Value::Ident(ref i) => format!("'{}", i)
     }
 }

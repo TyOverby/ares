@@ -9,6 +9,19 @@ pub use tokenizer::parse;
 pub use eval::{Procedure, Environment, eval, ForeignFunction};
 pub use error::{AresError, AresResult};
 
+macro_rules! gen_from {
+    ($inx: ty, $out: path) => {
+        gen_from!($inx, $out, |i| i);
+    };
+    ($inx: ty, $out: path, $tr: expr) => {
+        impl From<$inx> for Value {
+            fn from(i: $inx) -> Value {
+                $out($tr(i))
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     List(Rc<Vec<Value>>),
@@ -20,6 +33,41 @@ pub enum Value {
     Ident(Rc<String>),
     ForeignFn(ForeignFunction),
     Lambda(Procedure)
+}
+
+impl Value {
+    pub fn new_string<S: Into<String>>(s: S) -> Value {
+        Value::String(Rc::new(s.into()))
+    }
+    pub fn new_list(v: Vec<Value>) -> Value {
+        Value::List(Rc::new(v))
+    }
+}
+
+gen_from!(u8, Value::Int, |a| a as i64);
+gen_from!(i8, Value::Int, |a| a as i64);
+gen_from!(u16, Value::Int, |a| a as i64);
+gen_from!(i16, Value::Int, |a| a as i64);
+gen_from!(u32, Value::Int, |a| a as i64);
+gen_from!(i32, Value::Int, |a| a as i64);
+gen_from!(u64, Value::Int, |a| a as i64);
+gen_from!(i64, Value::Int);
+
+gen_from!(f32, Value::Float, |a| a as f64);
+gen_from!(f64, Value::Float);
+
+gen_from!(bool, Value::Bool);
+
+gen_from!(String, Value::String, |a| Rc::new(a));
+
+gen_from!(Vec<Value>, Value::List, |a| Rc::new(a));
+
+impl <'a> From<&'a str> for Value {
+    fn from(x: &'a str) -> Value {
+        let s: String = x.into();
+        let v: Value = s.into();
+        v
+    }
 }
 
 impl PartialEq for Value {

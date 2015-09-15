@@ -1,19 +1,15 @@
 extern crate ares;
 
+#[macro_use]
 mod util;
 
-use std::rc::Rc;
-
-use ares::*;
-use util::*;
-
 #[test]
-fn basic_if() {
-    assert_eq!(e("5"), Value::Int(5));
-    assert_eq!(e("-5"), Value::Int(-5));
-    assert_eq!(e("5.0"), Value::Float(5.0));
-    assert_eq!(e("-5.0"), Value::Float(-5.0));
-    assert_eq!(e("true"), Value::Bool(true));
-    assert_eq!(e("false"), Value::Bool(false));
-    assert_eq!(e("\"foobar\""), Value::String(Rc::new("foobar".to_string())))
+fn unit_types() {
+    eval_ok!("5", 5);
+    eval_ok!("-5", -5);
+    eval_ok!("5.0", 5.0);
+    eval_ok!("-5.0", -5.0);
+    eval_ok!("true", true);
+    eval_ok!("false", false);
+    eval_ok!("\"foobar\"", "foobar");
 }

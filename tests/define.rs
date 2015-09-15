@@ -1,29 +1,24 @@
 extern crate ares;
 
+#[macro_use]
 mod util;
-
-use ares::*;
-use util::*;
 
 
 #[test]
 fn global_define() {
-    assert_eq!(
-    e("(define x 5)
-       (+ x 1)"), Value::Int(6));
+    eval_ok!("(define x 5)
+       (+ x 1)", 6);
 }
 
 #[test]
 fn lambda_define() {
-    assert_eq!(
-    e("((lambda ()
+    eval_ok!("((lambda ()
             (define x 5)
-            x))"), Value::Int(5));
+            x))", 5);
 
-    assert_eq!(
-    e("((lambda ()
+    eval_ok!("((lambda ()
             (define x 5)
             (+ x ((lambda ()
                     (define x 11)
-                    x)))))"), Value::Int(16));
+                    x)))))", 16);
 }
