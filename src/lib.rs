@@ -6,7 +6,7 @@ pub mod stdlib;
 mod error;
 
 pub use tokenizer::parse;
-pub use eval::{Procedure, Environment, eval, ForeignFunction};
+pub use eval::{Procedure, eval, ForeignFunction, Env, Environment};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {

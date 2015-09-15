@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 use super::{Value, AresError, AresResult, rc_to_usize, write_usize};
+
+pub use self::environment::{Env, Environment};
+
+mod environment;
 
 #[derive(Clone)]
 pub struct ForeignFunction {
@@ -11,7 +14,7 @@ pub struct ForeignFunction {
 }
 
 #[derive(Clone)]
-enum FfType{
+pub enum FfType{
     FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>),
     //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
     UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
@@ -25,14 +28,8 @@ pub struct Procedure {
     environment: Env
 }
 
-pub type Env = Rc<RefCell<Environment>>;
-pub struct Environment {
-    parent: Option<Env>,
-    bindings: HashMap<String, Value>
-}
-
 impl ForeignFunction {
-    fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>) -> ForeignFunction {
+    pub fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>) -> ForeignFunction {
         ForeignFunction {
             name: name,
             function: FfType::FreeFn(function)
@@ -116,82 +113,14 @@ impl Procedure {
         }
     }
 
-    fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Rc<RefCell<Environment>> {
-        Rc::new(RefCell::new(Environment {
-            parent: Some(self.environment.clone()),
-            bindings: self.param_names.iter().cloned().zip(values).collect()
-        }))
+    pub fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Rc<RefCell<Environment>> {
+        Rc::new(RefCell::new(
+                    Environment::new_with_data(
+                        self.environment.clone(),
+                        self.param_names.iter().cloned().zip(values).collect())))
     }
 }
 
-
-impl Environment {
-    pub fn new() -> Environment {
-        Environment {
-            parent: None,
-            bindings: HashMap::new()
-        }
-    }
-
-    pub fn get(&self, name: &str) -> Option<Value> {
-        if self.bindings.contains_key(name) {
-            Some(self.bindings[name].clone())
-        } else if let Some(ref p) = self.parent {
-            let lock = p.borrow();
-            lock.get(name).clone()
-        } else {
-            None
-        }
-    }
-
-    pub fn with_value<F, R>(&self, name: &str, function: F) -> Option<R>
-    where F: FnOnce(&Value) -> R
-    {
-        if self.bindings.contains_key(name) {
-            Some(function(&self.bindings[name]))
-        } else if let Some(ref p) = self.parent {
-            let lock = p.borrow();
-            lock.with_value(name, function)
-        } else {
-            None
-        }
-    }
-
-    pub fn with_value_mut<F, R>(&mut self, name: &str, function: F) -> Option<R>
-    where F: FnOnce(&mut Value) -> R
-    {
-        if self.bindings.contains_key(name) {
-            Some(function(self.bindings.get_mut(name).unwrap()))
-        } else if let Some(ref p) = self.parent {
-            let mut lock = p.borrow_mut();
-            lock.with_value_mut(name, function)
-        } else {
-            None
-        }
-    }
-
-    pub fn insert(&mut self, name: String, value: Value) -> Option<Value> {
-        self.bindings.insert(name, value)
-    }
-
-    pub fn set_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
-    {
-        let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>> = Rc::new(f);
-        self.bindings.insert(
-            name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed)));
-    }
-
-    pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
-    {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
-        self.bindings.insert(
-            name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
-    }
-}
 
 pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
     match value {

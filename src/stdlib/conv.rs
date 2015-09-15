@@ -3,6 +3,16 @@ use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
 
+pub fn is_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+    for item in values {
+        if let Value::Int(_) = item {
+        } else {
+            return Ok(false.into())
+        }
+    }
+    Ok(true.into())
+}
+
 pub fn to_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
      match values.next().unwrap() {
          Value::Int(i) => Ok(Value::Int(i)),
