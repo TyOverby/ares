@@ -1,125 +1,15 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use super::{Value, AresError, AresResult, rc_to_usize, write_usize};
+use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
+pub use self::foreign_function::{ForeignFunction, FfType};
+pub use self::procedure::Procedure;
 
 mod environment;
-
-#[derive(Clone)]
-pub struct ForeignFunction {
-    pub name: String,
-    function: FfType
-}
-
-#[derive(Clone)]
-pub enum FfType{
-    FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>),
-    //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
-}
-
-#[derive(Clone)]
-pub struct Procedure {
-    pub name: Option<String>,
-    pub bodies: Rc<Vec<Value>>,
-    param_names: Vec<String>, // TODO: allow this to also be a single identifier for varargs
-    environment: Env
-}
-
-impl ForeignFunction {
-    pub fn new_free_function(name: String, function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>) -> ForeignFunction {
-        ForeignFunction {
-            name: name,
-            function: FfType::FreeFn(function)
-        }
-    }
-
-    fn new_uneval_function(
-        name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
-    {
-        ForeignFunction {
-            name: name,
-            function: FfType::UnEvalFn(function)
-        }
-    }
-
-    fn to_usize(&self) -> usize {
-        match &self.function {
-            &FfType::FreeFn(ref rc) => {
-                rc_to_usize(rc)
-            }
-            &FfType::UnEvalFn(ref rc) => {
-                rc_to_usize(rc)
-            }
-        }
-    }
-}
-
-impl ::std::fmt::Debug for ForeignFunction {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
-        fmt.write_str(&self.name)
-    }
-}
-
-impl PartialEq for ForeignFunction {
-    fn eq(&self, other: &ForeignFunction) -> bool {
-        self.name == other.name &&
-        self.to_usize() == other.to_usize()
-    }
-}
-
-impl Eq for ForeignFunction {}
-
-impl PartialEq for Procedure {
-    fn eq(&self, other: &Procedure) -> bool {
-        rc_to_usize(&self.bodies) == rc_to_usize(&other.bodies) &&
-        rc_to_usize(&self.environment) == rc_to_usize(&other.environment)
-    }
-}
-
-impl Eq for Procedure {}
-
-impl ::std::fmt::Debug for Procedure {
-    fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
-        fmt.write_str("<lambda>")
-    }
-}
-
-impl ::std::hash::Hash for ForeignFunction {
-    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-        write_usize(self.to_usize(), state);
-    }
-}
-
-impl ::std::hash::Hash for Procedure {
-    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-        write_usize(rc_to_usize(&self.bodies), state);
-        write_usize(rc_to_usize(&self.environment), state);
-    }
-}
-
-
-
-impl Procedure {
-    pub fn new(name: Option<String>, bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
-        Procedure {
-            name: name,
-            bodies: bodies,
-            param_names: param_names,
-            environment: env
-        }
-    }
-
-    pub fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Rc<RefCell<Environment>> {
-        Rc::new(RefCell::new(
-                    Environment::new_with_data(
-                        self.environment.clone(),
-                        self.param_names.iter().cloned().zip(values).collect())))
-    }
-}
+mod foreign_function;
+mod procedure;
 
 
 pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
