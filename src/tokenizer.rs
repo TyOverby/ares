@@ -2,7 +2,7 @@
 use std::rc::Rc;
 use std::error::Error;
 use std::fmt;
-use super::Value;
+use ::Value;
 
 #[derive(Debug, Clone)]
 enum Token<'a> {
@@ -46,20 +46,22 @@ impl<'a> Error for ParseError<'a> {
     fn description(&self) -> &str { self.0.description() }
 }
 
+use tokenizer::ParseError_::*;
+
 impl<'a> fmt::Display for ParseError_<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ParseError_::UnexpectedChar(c, (line, col), tokstate) => 
+            UnexpectedChar(c, (line, col), tokstate) => 
                 write!(f,
                        "Unexpected character {} at line {}, column {}, token state {:?}",
                        c, line, col, tokstate),
-            ParseError_::UnterminatedString((line, col)) =>
+            UnterminatedString((line, col)) =>
                 write!(f, "Unterminated string beginning at line {}, column {}", line, col),
-            ParseError_::ConversionError(ref s, ref e) => {
+            ConversionError(ref s, ref e) => {
                 write!(f, "Could not convert {}: {}", s, e)
             },
-            ParseError_::MissingRParen => write!(f, "Missing right parenthesis"),
-            ParseError_::ExtraRParen((line, col)) => write!(f, "Extra right parenthesis at line {}, column {}", line, col)
+            MissingRParen => write!(f, "Missing right parenthesis"),
+            ExtraRParen((line, col)) => write!(f, "Extra right parenthesis at line {}, column {}", line, col)
         }
     }
 }
@@ -67,11 +69,11 @@ impl<'a> fmt::Display for ParseError_<'a> {
 impl<'a> Error for ParseError_<'a> {
     fn description(&self) -> &str {
         match *self {
-            ParseError_::UnexpectedChar(_, _, _) => "Unexpected character",
-            ParseError_::UnterminatedString(_) => "Unterminated string",
-            ParseError_::ConversionError(_, ref e) => e.description(),
-            ParseError_::MissingRParen => "Missing right parenthesis",
-            ParseError_::ExtraRParen(_) => "Extra right parenthesis"
+            UnexpectedChar(_, _, _) => "Unexpected character",
+            UnterminatedString(_) => "Unterminated string",
+            ConversionError(_, ref e) => e.description(),
+            MissingRParen => "Missing right parenthesis",
+            ExtraRParen(_) => "Extra right parenthesis"
         }
     }
 }
@@ -105,11 +107,12 @@ fn escape_string(s: &str) -> String {
 }
 
 fn tokenize(s: &str) -> Result<Vec<Token>, ParseError> {
+    use tokenizer::TokenState::*;
     let mut col = 0;
     let mut line = 1;
     let mut i = 0;
     let mut nesting = 0;
-    let mut tokenizing = TokenState::Whitespace;
+    let mut tokenizing = Whitespace;
     let mut tokens = vec![];
     let mut sym_start = None;
     let mut string_start_pos = (1, 1);
@@ -122,78 +125,78 @@ fn tokenize(s: &str) -> Result<Vec<Token>, ParseError> {
         }
         if c.is_whitespace() || c == ')' || c == '(' {
             match tokenizing {
-                TokenState::Symbol => { 
+                Symbol => { 
                     tokens.push(Token::Symbol(&s[i..j]));
-                    tokenizing = TokenState::Whitespace;
+                    tokenizing = Whitespace;
                 },
-                TokenState::Number => {
+                Number => {
                     tokens.push(Token::Number(&s[i..j]));
-                    tokenizing = TokenState::Whitespace;
+                    tokenizing = Whitespace;
                 },
-                TokenState::StringSkip => tokenizing = TokenState::String,
+                StringSkip => tokenizing = String,
                 _ => ()
             }
-            if tokenizing != TokenState::String {
+            if tokenizing != String {
                 if c == '(' {
                     nesting += 1;
                     tokens.push(Token::LParen);
                 } else if c == ')' {
                     nesting -= 1;
                     if nesting < 0 {
-                        return parse_error(ParseError_::ExtraRParen((line, col)))
+                        return parse_error(ExtraRParen((line, col)))
                     }
                     tokens.push(Token::RParen);
                 }
             }
         } else { 
             match tokenizing {
-                TokenState::Whitespace => {
+                Whitespace => {
                     if c == '"' {
                         i = j + 1;
                         string_start_pos = (line, col);
-                        tokenizing = TokenState::String;
+                        tokenizing = String;
                     } else if c.is_digit(10) {
                         i = j;
-                        tokenizing = TokenState::Number;
+                        tokenizing = Number;
                     }  else {
-                        tokenizing = TokenState::Symbol;
+                        tokenizing = Symbol;
                         sym_start = Some(c);
                         i = j;
                     } 
                 },
-                TokenState::String => {
+                String => {
                     if c == '"' {
-                        tokenizing = TokenState::Whitespace;
+                        tokenizing = Whitespace;
                         tokens.push(Token::String(&s[i..j]));
                     } else if c == '\\' {
-                        tokenizing = TokenState::StringSkip
+                        tokenizing = StringSkip
                     } else { () }
                 },
-                TokenState::StringSkip => tokenizing = TokenState::String,
-                TokenState::Symbol => {
+                StringSkip => tokenizing = String,
+                Symbol => {
                     if i + 1 == j && (sym_start == Some('+') || sym_start == Some('-')) && c.is_digit(10) {
-                        tokenizing = TokenState::Number;
+                        tokenizing = Number;
                     } else if !(c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
                                 (c >= '#' && c <= '\'')) {
-                        return parse_error(ParseError_::UnexpectedChar(c, (line, col), tokenizing));
+                        return parse_error(UnexpectedChar(c, (line, col), tokenizing));
                     }
                 },
-                TokenState::Number => {
+                Number => {
                     if !(c.is_digit(10) || c == 'e' || c == 'E' || c == '.') {
-                        return parse_error(ParseError_::UnexpectedChar(c, (line, col), tokenizing))
+                        return parse_error(UnexpectedChar(c, (line, col), tokenizing))
                     }
                 }
             } 
         }
     };
     match tokenizing {
-        TokenState::String | TokenState::StringSkip => return parse_error(ParseError_::UnterminatedString(string_start_pos)),
-        TokenState::Symbol => tokens.push(Token::Symbol(&s[i..s.len()])),
-        TokenState::Number => tokens.push(Token::Number(&s[i..s.len()])),
-        TokenState::Whitespace => ()
+        String | StringSkip => return parse_error(UnterminatedString(string_start_pos)),
+        Symbol => tokens.push(Token::Symbol(&s[i..s.len()])),
+        Number => tokens.push(Token::Number(&s[i..s.len()])),
+        Whitespace => ()
     };
     if nesting > 0 {
-        return parse_error(ParseError_::MissingRParen)
+        return parse_error(MissingRParen)
     }
     Ok(tokens)
 }
@@ -207,7 +210,7 @@ fn parse_tokens<'a, 'b: 'a, I>(i: &mut I) -> Result<Vec<Value>, ParseError<'b>>
             match token {
                 &Token::Number(ref s) => Some(try!(s.parse().map(Value::Int)
                                                    .or_else(|_| s.parse().map(Value::Float))
-                                                   .map_err(|e| ParseError(ParseError_::ConversionError(s, Box::new(e)))))),
+                                                   .map_err(|e| ParseError(ConversionError(s, Box::new(e)))))),
                 &Token::Symbol(ref s) => Some(s.parse().map(Value::Bool)
                                               .unwrap_or(Value::Ident(Rc::new(s.to_string())))),
                 &Token::String(ref s) => Some(Value::String(Rc::new(escape_string(s)))),

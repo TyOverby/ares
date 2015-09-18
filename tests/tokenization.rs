@@ -1,6 +1,5 @@
 extern crate ares;
-use std::error::Error;
-use ares::tokenizer::{parse, ParseError};
+use ares::tokenizer::parse;
 use ares::Value;
 
 macro_rules! parse_fail {

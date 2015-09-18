@@ -21,7 +21,13 @@ fn main() {
     loop {
         buf.clear();
         stdin.read_line(&mut buf).unwrap();
-        let trees = ares::parse(&buf).unwrap();
+        let trees = match ares::parse(&buf) {
+            Ok(trees) => trees,
+            Err(parse_error) => {
+                println!("Parse error: {}", Red.paint(parse_error));
+                continue;
+            }
+        };
         let mut last = None;
         for tree in trees {
             let evald = ares::eval(&tree, &mut env);
