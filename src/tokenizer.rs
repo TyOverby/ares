@@ -78,10 +78,16 @@ impl<'a> Error for ParseError_<'a> {
     }
 }
 
+#[inline]
 fn parse_error<T>(p: ParseError_) -> Result<T, ParseError> {
     Err(ParseError(p))
 }
 
+#[inline]
+fn is_symbol_char(c: char) -> bool {
+    c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
+        (c >= '#' && c<= '\'')
+}
 
 
 fn escape_string(s: &str) -> String {
@@ -158,11 +164,13 @@ fn tokenize(s: &str) -> Result<Vec<Token>, ParseError> {
                     } else if c.is_digit(10) {
                         i = j;
                         tokenizing = Number;
-                    }  else {
+                    }  else if is_symbol_char(c) {
                         tokenizing = Symbol;
                         sym_start = Some(c);
                         i = j;
-                    } 
+                    } else {
+                        return parse_error(UnexpectedChar(c, (line, col), tokenizing))
+                    }
                 },
                 String => {
                     if c == '"' {
@@ -176,8 +184,7 @@ fn tokenize(s: &str) -> Result<Vec<Token>, ParseError> {
                 Symbol => {
                     if i + 1 == j && (sym_start == Some('+') || sym_start == Some('-')) && c.is_digit(10) {
                         tokenizing = Number;
-                    } else if !(c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
-                                (c >= '#' && c <= '\'')) {
+                    } else if !is_symbol_char(c) {
                         return parse_error(UnexpectedChar(c, (line, col), tokenizing));
                     }
                 },
