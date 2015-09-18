@@ -8,7 +8,6 @@ use std::io::{self, BufRead};
 
 use term_painter::Color::*;
 use term_painter::ToStyle;
-use term_painter::Attr::*;
 
 fn main() {
     let mut env = ares::Environment::new();

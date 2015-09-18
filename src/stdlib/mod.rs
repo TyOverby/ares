@@ -39,4 +39,13 @@ pub fn load_types(env: &mut Environment) {
     env.set_function("->float", self::conv::to_float);
     env.set_function("->string", self::conv::to_string);
     env.set_function("->bool", self::conv::to_bool);
+
+    env.set_function("int?", self::conv::is_int);
+    env.set_function("float?", self::conv::is_float);
+    env.set_function("bool?", self::conv::is_bool);
+    env.set_function("string?", self::conv::is_string);
+    env.set_function("list?", self::conv::is_list);
+    env.set_function("lambda?", self::conv::is_lambda);
+    env.set_function("foreign-fn?", self::conv::is_foreign_fn);
+    env.set_function("executable", self::conv::is_executable);
 }

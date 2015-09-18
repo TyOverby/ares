@@ -3,15 +3,40 @@ use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
 
-pub fn is_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+macro_rules! gen_is_type {
+    ($name: ident, $p: ident) => {
+        pub fn $name(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+            for item in values {
+                if let Value::$p(_) = item {
+                } else {
+                    return Ok(false.into())
+                }
+            }
+            Ok(true.into())
+        }
+    }
+}
+
+gen_is_type!(is_int, Int);
+gen_is_type!(is_float, Float);
+gen_is_type!(is_bool, Bool);
+gen_is_type!(is_string, String);
+gen_is_type!(is_list, List);
+gen_is_type!(is_ident, Ident);
+gen_is_type!(is_lambda, Lambda);
+gen_is_type!(is_foreign_fn, ForeignFn);
+
+pub fn is_executable(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
     for item in values {
-        if let Value::Int(_) = item {
-        } else {
-            return Ok(false.into())
+        match item {
+            Value::Lambda(_) => {},
+            Value::ForeignFn(_) => {},
+            _ => return Ok(false.into())
         }
     }
     Ok(true.into())
 }
+
 
 pub fn to_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
      match values.next().unwrap() {

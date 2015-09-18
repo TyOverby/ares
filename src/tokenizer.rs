@@ -45,8 +45,13 @@ fn atom(s: String) -> Value {
         (_, _, _, s) => {
             if s.starts_with("\"") {
                 Value::String(Rc::new(s[1..s.len()-1].to_string()))
+            } else if s.starts_with("'") {
+                Value::new_list(
+                    vec![
+                        Value::new_ident("quote"),
+                        Value::new_ident(s[1..].to_string())])
             } else {
-                Value::Ident(Rc::new(s))
+                Value::new_ident(s)
             }
         }
     }
