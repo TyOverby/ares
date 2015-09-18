@@ -19,7 +19,7 @@ fn basic_environment() -> Rc<RefCell<Environment>> {
 }
 
 pub fn e(program: &str) -> AresResult<Value> {
-    let trees = parse(program);
+    let trees = parse(program).unwrap();
     let mut env = basic_environment();
     let mut last = None;
     for tree in trees {

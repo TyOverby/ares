@@ -21,7 +21,7 @@ fn main() {
     loop {
         buf.clear();
         stdin.read_line(&mut buf).unwrap();
-        let trees = ares::parse(&buf);
+        let trees = ares::parse(&buf).unwrap();
         let mut last = None;
         for tree in trees {
             let evald = ares::eval(&tree, &mut env);
