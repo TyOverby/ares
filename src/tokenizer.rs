@@ -2,39 +2,288 @@
 use std::rc::Rc;
 use std::error::Error;
 use std::fmt;
+use std::str::CharIndices;
+use std::iter::Peekable;
+use std::char;
 use ::Value;
 
 #[derive(Debug, Clone)]
 enum Token<'a> {
-    RParen,
+    RParen(Position),
     LParen,
-    String(&'a str),
+    String(String),
     Number(&'a str),
     Symbol(&'a str)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TokenState {
-    String,
-    Symbol,
-    StringSkip,
-    Number,
-    Whitespace
+struct TokenIter<'a>
+{
+    input: &'a str,
+    iter: Peekable<CharIndicesLineCol<'a>>,
+}
+
+struct CharIndicesLineCol<'a> {
+    line: usize,
+    col: usize,
+    iter: CharIndices<'a>
 }
 
 type Position = (usize, usize);
 
 #[derive(Debug)]
 enum ParseError_<'a> {
-    UnexpectedChar(char, Position, TokenState),
+    UnexpectedChar(char, Position, String),
     UnterminatedString(Position),
     ConversionError(&'a str, Box<Error>),
+    BadEscape(Position, &'a str),
     MissingRParen,
     ExtraRParen(Position)
 }
 
 #[derive(Debug)]
 pub struct ParseError<'a>(ParseError_<'a>);
+
+impl<'a> Iterator for CharIndicesLineCol<'a> {
+    type Item = (usize, char, Position);
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.iter.next() {
+            None => None,
+            Some((i, c)) => {
+                if c == '\n' {
+                    self.line += 1;
+                    self.col = 0;
+                } else {
+                    self.col += 1;
+                }
+                Some((i, c, (self.line, self.col)))
+            }
+        }
+    }
+}
+
+macro_rules! delimcheck {
+    ($c:expr, $pos: expr, $starting_pos: expr, $parsing: expr) => ({
+        let c = $c;
+        let spos = $starting_pos;
+        if !is_delimiter_c(c) {
+            return parse_error(
+                UnexpectedChar(c,
+                               $pos,
+                               format!("while parsing a {} starting at line {}, column {}",
+                                       $parsing, spos.0, spos.1)))
+        }
+    })
+}
+
+impl<'a> Iterator for TokenIter<'a>
+{
+    type Item = Result<Token<'a>, ParseError<'a>>;
+    fn next<'b>(&'b mut self) -> Option<Self::Item> {
+        self.skip_ws();
+        if let Some((start, curchar, pos)) = self.iter.next() {
+            match curchar {
+                c if is_symbol_start_c(c) => Some(self.read_symbol(c, start, pos)),
+                c if c.is_digit(10) => Some(self.read_number(start, pos)),
+                '(' => Some(Ok(Token::LParen)),
+                ')' => Some(Ok(Token::RParen(pos))),
+                '"' => Some(self.read_string(start + 1, pos)),
+                _ => None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> TokenIter<'a>
+{
+    fn new(s: &'a str) -> TokenIter<'a> {
+        let iter = CharIndicesLineCol { line: 1, col: 0, iter: s.char_indices() };
+        TokenIter { input: s, iter: iter.peekable() }
+    }
+
+    fn take_until<'b, F>(&'b mut self, f: F) -> (Vec<(usize, char, Position)>, Option<usize>)
+        where F: Fn(char) -> bool
+    {
+        let mut v = vec![];
+        let mut end = None;
+        for (j, c, pos) in &mut self.iter {
+            if !f(c) {
+                v.push((j, c, pos))
+            } else {
+                end = Some(j);
+                break;
+            }
+        }
+        (v, end)
+    }
+
+    fn skip_ws<'b>(&'b mut self) {
+        while self.iter.peek().map_or(false, |&(_, c, _)| c.is_whitespace()) {
+            self.iter.next();
+        }
+    }
+
+    fn read_u_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError<'a>> {
+        let (chars, brace) = self.take_until(|c| c == '}');
+        let brace = brace.unwrap_or(self.input.len());
+        match chars.len() {
+            0 => parse_error(UnterminatedString(startpos)),
+            l if l > 8 => parse_error(BadEscape(startpos, &self.input[start..chars[8].0])),
+            l => {
+                if chars[0].1 != '{' ||
+                    !(chars.iter().skip(1).take(l-1)
+                      .map(|&(_,c,_)| c).all(|c| c.is_digit(16))) {
+                    parse_error(BadEscape(startpos, &self.input[start..brace+1]))
+                } else {
+                    let ival = chars
+                        .iter()
+                        .skip(1)
+                        .take(l-1).fold(0, |acc, &(_, c, _)|
+                                        acc * 16 + (c as u32 - '0' as u32));
+                    char::from_u32(ival)
+                            .ok_or(ParseError(BadEscape(startpos,
+                                                        &self.input[start..brace+1])))
+                }
+            }
+        }
+    }
+
+    fn read_x_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError<'a>> {
+        // hand-rolled version of self.iter.take(2).collect()
+        let v : Vec<_> = self.iter.next().map_or(vec![], (|x| self.iter.next().map_or(vec![x], |y| vec![x,y])));
+        if v.len() < 2 {
+            parse_error(UnterminatedString(startpos))
+        } else {
+            let c1 = v[0].1;
+            let (end_index, c2, _) = v[1];
+            if c1 > '7' || c1 < '0' {
+                parse_error(BadEscape(startpos, &self.input[start..end_index]))
+            } else {
+                match c2 {
+                    '0' ... '9' | 'a' ... 'f' | 'A' ... 'F' => {
+                        let zero = '0' as u32;
+                        let ival = (c1 as u32 - zero) * 16 + (c2 as u32 - zero);
+                        char::from_u32(ival)
+                            .ok_or(ParseError(BadEscape(startpos, &self.input[start..end_index])))
+                    },
+                    _ => parse_error(BadEscape(startpos, &self.input[start..end_index+1]))
+                }
+            }
+        }
+    }
+
+    fn read_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError<'a>> {
+        if let Some((_, c, _pos)) = self.iter.next() {
+            match c {
+                'x' => self.read_x_escape(start, startpos),
+                'u' => self.read_u_escape(start, startpos),
+                _ => Ok(c)
+            }
+        } else {
+            parse_error(UnterminatedString(startpos))
+        }
+    }
+
+    fn read_string<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token<'a>, ParseError<'a>> {
+        let mut start = Some(start);
+        let mut string = String::new();
+        loop {
+            let next = self.iter.next();
+            match next {
+                None => return parse_error(UnterminatedString(startpos)),
+                Some((j, c, _pos)) => {
+                    if start.is_none() { start = Some(j); }
+                    if c == '\\' {
+                        string.push_str(&self.input[start.unwrap()..j]);
+                        string.push(try!(self.read_escape(start.unwrap(), startpos)));
+                        start = None;
+                    } else if c == '"' {
+                        string.push_str(&self.input[start.unwrap()..j]);
+                        break
+                    }
+                }
+            }
+        };
+        if let Some(&(_, c, pos)) = self.iter.peek() {
+            delimcheck!(c, pos, startpos, "string")
+        };
+        Ok(Token::String(string)) //&self.input[start..stop]))
+    }
+
+    fn read_number<'b>(&'b mut self, start: usize, start_pos: Position) -> Result<Token<'a>, ParseError<'a>> {
+        let stop;
+        loop {
+            if let Some(&(j, c, pos)) = self.iter.peek() {
+                if !is_number_c(c) {
+                    stop = j;
+                    delimcheck!(c, pos, start_pos, "number");
+                    break
+                }
+                self.iter.next();
+            } else {
+                stop = self.input.len();
+                break;
+            }
+        }
+        Ok(Token::Number(&self.input[start..stop]))
+    }
+
+    fn read_symbol<'b>(&'b mut self, symstart: char, start: usize, start_pos: Position)
+                   -> Result<Token<'a>, ParseError<'a>> {
+        let stop;
+        if let Some(&(j, c, _pos)) = self.iter.peek() {
+            if c.is_digit(10) && (symstart == '+' || symstart == '-') {
+                self.iter.next();
+                return self.read_number(start, start_pos)
+            } else if is_delimiter_c(c) {
+                return Ok(Token::Symbol(&self.input[start..j]))
+            }
+        }
+        self.iter.next();
+        loop {
+            if let Some(&(j, c, pos)) = self.iter.peek() {
+                if !is_symbol_c(c) {
+                    stop = j;
+                    delimcheck!(c, pos, start_pos, "symbol");
+                    break
+                }
+                self.iter.next();
+            } else {
+                stop = self.input.len();
+                break
+            }
+        }
+        Ok(Token::Symbol(&self.input[start..stop]))
+    }
+}
+
+#[inline]
+fn is_delimiter_c(c: char) -> bool {
+    c.is_whitespace() || c == '(' || c == ')'
+}
+
+#[inline]
+fn is_number_c(c: char) -> bool {
+    c.is_digit(10) || c == '.'  || c == 'e' || c == 'E'
+}
+
+
+#[inline]
+fn is_symbol_c(c: char) -> bool {
+    c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
+        (c >= '#' && c<= '\'')
+}
+
+#[inline]
+fn is_symbol_start_c(c: char) -> bool {
+    is_symbol_c(c) && !c.is_numeric()
+}
+
+#[inline]
+fn parse_error<T>(p: ParseError_) -> Result<T, ParseError> {
+    Err(ParseError(p))
+}
 
 impl<'a> fmt::Display for ParseError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -51,17 +300,21 @@ use tokenizer::ParseError_::*;
 impl<'a> fmt::Display for ParseError_<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            UnexpectedChar(c, (line, col), tokstate) => 
+            UnexpectedChar(c, pos, ref while_doing) =>
                 write!(f,
-                       "Unexpected character {} at line {}, column {}, token state {:?}",
-                       c, line, col, tokstate),
-            UnterminatedString((line, col)) =>
-                write!(f, "Unterminated string beginning at line {}, column {}", line, col),
+                       "Unexpected character {} at line {}, column {}, {}",
+                       c, pos.0, pos.1, while_doing),
+            UnterminatedString(pos) =>
+                write!(f, "Unterminated string beginning at line {}, column {}", pos.0, pos.1),
             ConversionError(ref s, ref e) => {
                 write!(f, "Could not convert {}: {}", s, e)
             },
+            BadEscape(pos, ref s) =>
+                write!(f, "Invalid escape sequence starting at line {}, column {}: {}",
+                       pos.0, pos.1, s),
             MissingRParen => write!(f, "Missing right parenthesis"),
-            ExtraRParen((line, col)) => write!(f, "Extra right parenthesis at line {}, column {}", line, col)
+            ExtraRParen(pos) =>
+                write!(f, "Extra right parenthesis at line {}, column {}", pos.0, pos.1)
         }
     }
 }
@@ -72,172 +325,44 @@ impl<'a> Error for ParseError_<'a> {
             UnexpectedChar(_, _, _) => "Unexpected character",
             UnterminatedString(_) => "Unterminated string",
             ConversionError(_, ref e) => e.description(),
+            BadEscape(..) => "Bad escape sequence",
             MissingRParen => "Missing right parenthesis",
             ExtraRParen(_) => "Extra right parenthesis"
         }
     }
 }
 
-#[inline]
-fn parse_error<T>(p: ParseError_) -> Result<T, ParseError> {
-    Err(ParseError(p))
-}
-
-#[inline]
-fn is_symbol_char(c: char) -> bool {
-    c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
-        (c >= '#' && c<= '\'')
-}
-
-
-fn escape_string(s: &str) -> String {
-    let mut was_escaped = false;
-    let mut string = String::with_capacity(s.len());
-    for c in s.chars() {
-        if was_escaped {
-            string.push(match c {
-                't' => '\t',
-                'r' => '\r',
-                'n' => '\n',
-                '"' => '\"',
-                _ => c
-            });
-            was_escaped = false;
-        } else if c == '\\' {
-            was_escaped = true;
-        } else {
-            string.push(c);
-        }
-    };
-    string
-}
-
-fn tokenize(s: &str) -> Result<Vec<Token>, ParseError> {
-    use tokenizer::TokenState::*;
-    let mut col = 0;
-    let mut line = 1;
-    let mut i = 0;
-    let mut nesting = 0;
-    let mut tokenizing = Whitespace;
-    let mut tokens = vec![];
-    let mut sym_start = None;
-    let mut string_start_pos = (1, 1);
-    for (j, c) in s.char_indices() {
-        if c == '\n' {
-            line += 1;
-            col = 0;
-        } else {
-            col += 1;
-        }
-        if c.is_whitespace() || c == ')' || c == '(' {
-            match tokenizing {
-                Symbol => { 
-                    tokens.push(Token::Symbol(&s[i..j]));
-                    tokenizing = Whitespace;
-                },
-                Number => {
-                    tokens.push(Token::Number(&s[i..j]));
-                    tokenizing = Whitespace;
-                },
-                StringSkip => tokenizing = String,
-                _ => ()
-            }
-            if tokenizing != String {
-                if c == '(' {
-                    nesting += 1;
-                    tokens.push(Token::LParen);
-                } else if c == ')' {
-                    nesting -= 1;
-                    if nesting < 0 {
-                        return parse_error(ExtraRParen((line, col)))
-                    }
-                    tokens.push(Token::RParen);
-                }
-            }
-        } else { 
-            match tokenizing {
-                Whitespace => {
-                    if c == '"' {
-                        i = j + 1;
-                        string_start_pos = (line, col);
-                        tokenizing = String;
-                    } else if c.is_digit(10) {
-                        i = j;
-                        tokenizing = Number;
-                    }  else if is_symbol_char(c) {
-                        tokenizing = Symbol;
-                        sym_start = Some(c);
-                        i = j;
-                    } else {
-                        return parse_error(UnexpectedChar(c, (line, col), tokenizing))
-                    }
-                },
-                String => {
-                    if c == '"' {
-                        tokenizing = Whitespace;
-                        tokens.push(Token::String(&s[i..j]));
-                    } else if c == '\\' {
-                        tokenizing = StringSkip
-                    } else { () }
-                },
-                StringSkip => tokenizing = String,
-                Symbol => {
-                    if i + 1 == j && (sym_start == Some('+') || sym_start == Some('-')) && c.is_digit(10) {
-                        tokenizing = Number;
-                    } else if !is_symbol_char(c) {
-                        return parse_error(UnexpectedChar(c, (line, col), tokenizing));
-                    }
-                },
-                Number => {
-                    if !(c.is_digit(10) || c == 'e' || c == 'E' || c == '.') {
-                        return parse_error(UnexpectedChar(c, (line, col), tokenizing))
-                    }
-                }
-            } 
-        }
-    };
-    match tokenizing {
-        String | StringSkip => return parse_error(UnterminatedString(string_start_pos)),
-        Symbol => tokens.push(Token::Symbol(&s[i..s.len()])),
-        Number => tokens.push(Token::Number(&s[i..s.len()])),
-        Whitespace => ()
-    };
-    if nesting > 0 {
-        return parse_error(MissingRParen)
-    }
-    Ok(tokens)
-}
-
-fn parse_tokens<'a, 'b: 'a, I>(i: &mut I) -> Result<Vec<Value>, ParseError<'b>>
-    where I: Iterator<Item=&'a Token<'b>>
-{
+fn parse_tokens<'a, 'b>(tok_stream: &'a mut TokenIter<'b>, nesting: i32)
+                            -> Result<Vec<Value>, ParseError<'b>> {
+    use tokenizer::Token::*;
     let mut v = vec![];
     loop {
-        let value = if let Some(token) = i.next() {
-            match token {
-                &Token::Number(ref s) => Some(try!(s.parse().map(Value::Int)
-                                                   .or_else(|_| s.parse().map(Value::Float))
-                                                   .map_err(|e| ParseError(ConversionError(s, Box::new(e)))))),
-                &Token::Symbol(ref s) => Some(s.parse().map(Value::Bool)
-                                              .unwrap_or(Value::Ident(Rc::new(s.to_string())))),
-                &Token::String(ref s) => Some(Value::String(Rc::new(escape_string(s)))),
-                &Token::RParen        => break,
-                &Token::LParen        => None
+        if let Some(tok_or_err) = tok_stream.next() {
+            v.push(match try!(tok_or_err) {
+                Number(ref s) => try!(s.parse().map(Value::Int)
+                                      .or_else(|_| s.parse().map(Value::Float))
+                                      .map_err(|e| ParseError(ConversionError(s, Box::new(e))))),
+                Symbol(ref s) => s.parse().map(Value::Bool)
+                                 .unwrap_or(Value::Ident(Rc::new(s.to_string()))),
+                String(s)     => Value::String(Rc::new(s)),
+                RParen(pos)   => {
+                    if nesting - 1 < 0 {
+                        return parse_error(ExtraRParen(pos))
+                    }
+                    break
+                },
+                LParen        => Value::List(Rc::new(try!(parse_tokens(tok_stream, nesting + 1))))
+            })
+        } else {
+            if nesting > 0 {
+                return parse_error(MissingRParen)
             }
-        } else { 
             break
-        };
-        match value {
-            Some(value) => v.push(value),
-            None => v.push(Value::List(Rc::new(try!(parse_tokens(i)))))
         }
     }
     Ok(v)
 }
 
 pub fn parse(input: &str) -> Result<Vec<Value>, ParseError> {
-    let tokens = tokenize(input);
-    tokens.and_then(|tokens| {  
-        parse_tokens(&mut tokens.iter())
-    })
+    parse_tokens(&mut TokenIter::new(input), 0)
 }
