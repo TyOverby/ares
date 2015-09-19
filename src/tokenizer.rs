@@ -11,6 +11,7 @@ use ::Value;
 enum Token<'a> {
     RParen(Position),
     LParen,
+    Quote,
     String(String),
     Number(&'a str),
     Symbol(&'a str)
@@ -82,6 +83,7 @@ impl<'a> Iterator for TokenIter<'a>
         self.skip_ws();
         if let Some((start, curchar, pos)) = self.iter.next() {
             match curchar {
+                '\'' => Some(Ok(Token::Quote)),
                 c if is_symbol_start_c(c) => Some(self.read_symbol(c, start, pos)),
                 c if c.is_digit(10) => Some(self.read_number(start, pos)),
                 '(' => Some(Ok(Token::LParen)),
@@ -277,7 +279,7 @@ fn is_symbol_c(c: char) -> bool {
 
 #[inline]
 fn is_symbol_start_c(c: char) -> bool {
-    is_symbol_c(c) && !c.is_numeric()
+    is_symbol_c(c) && !c.is_numeric() && c != '\''
 }
 
 #[inline]
@@ -345,6 +347,12 @@ fn parse_tokens<'a, 'b>(tok_stream: &'a mut TokenIter<'b>, nesting: i32)
                 Symbol(ref s) => s.parse().map(Value::Bool)
                                  .unwrap_or(Value::Ident(Rc::new(s.to_string()))),
                 String(s)     => Value::String(Rc::new(s)),
+                Quote         => {
+                    let quoted = try!(parse_tokens(tok_stream, nesting));
+                    let mut quoting = vec![Value::Ident(Rc::new("quote".to_string()))];
+                    quoting.extend(quoted);
+                    Value::List(Rc::new(quoting))
+                },
                 RParen(pos)   => {
                     if nesting - 1 < 0 {
                         return parse_error(ExtraRParen(pos))

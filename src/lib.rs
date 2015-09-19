@@ -39,6 +39,9 @@ impl Value {
     pub fn new_string<S: Into<String>>(s: S) -> Value {
         Value::String(Rc::new(s.into()))
     }
+    pub fn new_ident<S: Into<String>>(s: S) -> Value {
+        Value::Ident(Rc::new(s.into()))
+    }
     pub fn new_list(v: Vec<Value>) -> Value {
         Value::List(Rc::new(v))
     }
@@ -76,7 +79,7 @@ impl PartialEq for Value {
 
         match (self, other) {
             (&List(ref rc1), &List(ref rc2)) =>
-                rc_to_usize(rc1) == rc_to_usize(rc2),
+                rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
             (&String(ref rc1), &String(ref rc2)) =>
                 rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
             (&Float(f1), &Float(f2)) => f1 == f2,
@@ -97,12 +100,12 @@ impl std::hash::Hash for Value {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
         use std::mem::transmute;
         match self {
-            &Value::List(ref rc) => write_usize(rc_to_usize(rc), state),
-            &Value::String(ref rc) => write_usize(rc_to_usize(rc), state),
+            &Value::List(ref rc) => rc.hash(state),
+            &Value::String(ref rc) => rc.hash(state),
             &Value::Float(f) => unsafe { state.write(&transmute::<_, [u8; 8]>(f)) },
             &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
             &Value::Bool(b) => state.write(&[if b {1} else {0}]),
-            &Value::Ident(ref rc) => write_usize(rc_to_usize(rc), state),
+            &Value::Ident(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
         }

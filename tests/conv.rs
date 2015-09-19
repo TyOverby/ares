@@ -36,3 +36,35 @@ fn convert_to_string() {
     eval_ok!("(->string 1.5)", "1.5");
     eval_ok!("(->string \"hello\")", "hello");
 }
+
+#[test]
+fn is_int() {
+    eval_ok!("(int? 1)", true);
+
+    eval_ok!("(int? 1.0)", false);
+    eval_ok!("(int? true)", false);
+    eval_ok!("(int? false)", false);
+    eval_ok!("(int? \"hi\")", false);
+}
+
+#[test]
+fn is_float() {
+    eval_ok!("(float? 1.0)", true);
+
+    eval_ok!("(float? 1)", false);
+    eval_ok!("(float? true)", false);
+    eval_ok!("(float? false)", false);
+    eval_ok!("(float? \"hi\")", false);
+}
+
+#[test]
+fn is_bool() {
+    eval_ok!("(bool? true)", true);
+    eval_ok!("(bool? false)", true);
+
+    eval_ok!("(bool? 1)", false);
+    eval_ok!("(bool? 1.0)", false);
+    eval_ok!("(bool? \"hi\")", false);
+}
+
+// TODO: is_string is_list is_ident is_lambda is_foreign_fn
