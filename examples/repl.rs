@@ -16,7 +16,15 @@ fn main() {
 
     let stdin = io::stdin();
     for line in stdin.lock().lines().take_while(|a| a.is_ok()).filter_map(|a| a.ok()) {
-        for tree in ares::parse(&line) {
+        let trees = match ares::parse(&line) {
+            Ok(trees) => trees,
+            Err(parse_error) => {
+                println!("Parse error: {}", Red.paint(parse_error));
+                continue
+            }
+        };
+
+        for tree in trees {
             match ares::eval(&tree, &mut env) {
                 Ok(v) => {
                     println!("{:?}", Green.paint(v))
@@ -27,6 +35,5 @@ fn main() {
                 }
             }
         }
-
     }
 }

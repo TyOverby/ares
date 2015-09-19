@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-mod tokenizer;
+pub mod tokenizer;
 mod eval;
 pub mod stdlib;
 mod error;
