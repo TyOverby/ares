@@ -176,11 +176,16 @@ impl<'a> TokenIter<'a>
     }
 
     fn read_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError<'a>> {
-        if let Some((_, c, _pos)) = self.iter.next() {
+        if let Some((end, c, _pos)) = self.iter.next() {
             match c {
                 'x' => self.read_x_escape(start, startpos),
                 'u' => self.read_u_escape(start, startpos),
-                _ => Ok(c)
+                't' => Ok('\t'),
+                'r' => Ok('\r'),
+                'n' => Ok('\n'),
+                '\\' => Ok('\\'),
+                '"' => Ok('"'),
+                _ => parse_error(BadEscape(startpos, &self.input[start..end + 1]))
             }
         } else {
             parse_error(UnterminatedString(startpos))

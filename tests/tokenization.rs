@@ -41,6 +41,8 @@ sdf", "Unterminated string beginning at line 2, column 2");
     parse_ok!("\"\\\"\"", "\"");
     parse_ok!("\"\\x22\"", "\"");
     parse_ok!("\"\\u{2764}\"", "❤");
+    parse_ok!("\"\\n\"", "\n");
+    parse_fail!("\"\\s\"", "Invalid escape sequence starting at line 1, column 1: \\s");
     parse_fail!("\"\\x99\"", "Invalid escape sequence starting at line 1, column 1: \\x9");
     parse_fail!("\"\\x1x\"", "Invalid escape sequence starting at line 1, column 1: \\x1x");
     parse_fail!("\"\\u{999999}\"", "Invalid escape sequence starting at line 1, column 1: \\u{999999}");
