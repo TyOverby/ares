@@ -23,11 +23,10 @@ impl Procedure {
         }
     }
 
-    pub fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Rc<RefCell<Environment>> {
-        Rc::new(RefCell::new(
+    pub fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Env {
                     Environment::new_with_data(
                         self.environment.clone(),
-                        self.param_names.iter().cloned().zip(values).collect())))
+                        self.param_names.iter().cloned().zip(values).collect())
     }
 }
 

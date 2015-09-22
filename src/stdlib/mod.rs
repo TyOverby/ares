@@ -1,13 +1,14 @@
 use ::Environment;
 
-
 pub mod arithmetic;
 pub mod math;
 pub mod core;
 pub mod types;
+pub mod list;
 
 pub fn load_all(env: &mut Environment) {
     load_core(env);
+    load_list(env);
     load_math(env);
     load_arithmetic(env);
     load_types(env);
@@ -18,6 +19,10 @@ pub fn load_core(env: &mut Environment) {
     env.set_uneval_function("if", self::core::cond);
     env.set_uneval_function("define", self::core::define);
     env.set_uneval_function("lambda", self::core::lambda);
+}
+
+pub fn load_list(env: &mut Environment) {
+    env.set_uneval_function("build-list", self::list::build_list);
 }
 
 pub fn load_arithmetic(env: &mut Environment) {

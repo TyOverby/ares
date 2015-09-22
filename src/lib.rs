@@ -64,13 +64,26 @@ gen_from!(bool, Value::Bool);
 
 gen_from!(String, Value::String, Rc::new);
 
-gen_from!(Vec<Value>, Value::List, Rc::new);
+impl <T: Into<Value>> From<Vec<T>> for Value {
+    fn from(x: Vec<T>) -> Value {
+        Value::List(Rc::new(x.into_iter().map(|a| a.into()).collect()))
+    }
+}
 
 impl <'a> From<&'a str> for Value {
     fn from(x: &'a str) -> Value {
         let s: String = x.into();
         let v: Value = s.into();
         v
+    }
+}
+
+impl <S, F> From<(S, F)> for Value
+where S: Into<String>,
+      F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
+{
+    fn from((name, f): (S, F)) -> Value {
+        Value::ForeignFn(ForeignFunction::new_free_function(name.into(), Rc::new(f)))
     }
 }
 
