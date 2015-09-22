@@ -11,7 +11,6 @@ mod environment;
 mod foreign_function;
 mod procedure;
 
-
 pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
     match value {
         &ref v@Value::String(_) => Ok(v.clone()),

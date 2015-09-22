@@ -4,6 +4,7 @@ pub mod tokenizer;
 mod eval;
 pub mod stdlib;
 mod error;
+mod util;
 
 pub use tokenizer::parse;
 pub use eval::{Procedure, eval, ForeignFunction, Env, Environment};
@@ -78,8 +79,7 @@ impl PartialEq for Value {
         use ::Value::*;
 
         match (self, other) {
-            (&List(ref rc1), &List(ref rc2)) =>
-                rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
+            (&List(ref rc1), &List(ref rc2)) => rc1 == rc2,
             (&String(ref rc1), &String(ref rc2)) =>
                 rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
             (&Float(f1), &Float(f2)) => f1 == f2,
