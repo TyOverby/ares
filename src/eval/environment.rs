@@ -20,11 +20,20 @@ impl Environment {
         }
     }
 
+
     pub fn new_with_data(env: Env, bindings: HashMap<String, Value>) -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
             bindings: bindings
         }))
+    }
+
+    pub fn is_defined_at_this_level(&self, name: &str) -> bool {
+        self.bindings.contains_key(name)
+    }
+
+    pub fn is_defined(&self, name: &str) -> bool {
+        self.with_value(name, |_| ()).is_some()
     }
 
     pub fn get(&self, name: &str) -> Option<Value> {

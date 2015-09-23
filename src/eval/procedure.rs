@@ -1,20 +1,27 @@
 use std::rc::Rc;
+use std::collections::HashMap;
 use std::cell::RefCell;
 
 use ::{Value, rc_to_usize, write_usize};
 
 pub use super::environment::{Env, Environment};
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum ParamBinding {
+    SingleIdent(String),
+    ParamList(Vec<String>)
+}
+
 #[derive(Clone)]
 pub struct Procedure {
     pub name: Option<String>,
     pub bodies: Rc<Vec<Value>>,
-    param_names: Vec<String>, // TODO: allow this to also be a single identifier for varargs
+    param_names: ParamBinding, // TODO: allow this to also be a single identifier for varargs
     environment: Env
 }
 
 impl Procedure {
-    pub fn new(name: Option<String>, bodies: Rc<Vec<Value>>, param_names: Vec<String>, env: Env) -> Procedure {
+    pub fn new(name: Option<String>, bodies: Rc<Vec<Value>>, param_names: ParamBinding, env: Env) -> Procedure {
         Procedure {
             name: name,
             bodies: bodies,
@@ -24,9 +31,22 @@ impl Procedure {
     }
 
     pub fn gen_env<I: Iterator<Item=Value>>(&self, values: I) -> Env {
-                    Environment::new_with_data(
-                        self.environment.clone(),
-                        self.param_names.iter().cloned().zip(values).collect())
+        match &self.param_names {
+            &ParamBinding::SingleIdent(ref s) => {
+                let vec: Vec<_> = values.collect();
+                let list: Value = vec.into();
+                let mut binding = HashMap::new();
+                binding.insert(s.clone(), list);
+                Environment::new_with_data(
+                    self.environment.clone(),
+                    binding)
+            }
+            &ParamBinding::ParamList(ref v) => {
+                Environment::new_with_data(
+                    self.environment.clone(),
+                    v.iter().cloned().zip(values).collect())
+            }
+        }
     }
 }
 

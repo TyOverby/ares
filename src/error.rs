@@ -12,5 +12,6 @@ pub enum AresError {
     UnexpectedArity{found: u16, expected: String},
     IllegalConversion{value: Value, into: String},
     InvalidState(String),
+    AlreadyDefined(String)
 }
 

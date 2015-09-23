@@ -17,6 +17,7 @@ pub fn load_all(env: &mut Environment) {
 pub fn load_core(env: &mut Environment) {
     env.set_uneval_function("quote", self::core::quote);
     env.set_uneval_function("if", self::core::cond);
+    env.set_uneval_function("set!", self::core::set);
     env.set_uneval_function("define", self::core::define);
     env.set_uneval_function("lambda", self::core::lambda);
 }

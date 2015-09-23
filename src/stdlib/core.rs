@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Environment, Procedure, AresResult};
+use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
 
 pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     let first = args.next().unwrap();
@@ -34,7 +34,10 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
                     panic!("non ident param name");
                 }
             }).collect();
-            r
+            ParamBinding::ParamList(r)
+        }
+        &Value::Ident(ref v) => {
+            ParamBinding::SingleIdent((**v).clone())
         }
         _ => panic!("no param names list found for lambda")
     };
@@ -54,10 +57,38 @@ pub fn define(args: &mut Iterator<Item=&Value>,
         &Value::Ident(ref s) => (&**s).clone(),
         & ref other => panic!("define with no name: {:?}", other)
     };
+
+    if env.borrow().is_defined_at_this_level(&name) {
+        return Err(AresError::AlreadyDefined(name.into()))
+    }
+
     let value = args.next().unwrap();
 
     if args.next().is_some() {
         panic!("define with more than 2 args");
+    }
+
+    let result = try!(eval(value, env));
+    env.borrow_mut().insert(name, result.clone());
+    Ok(result)
+}
+
+pub fn set(args: &mut Iterator<Item=&Value>,
+              env: &Rc<RefCell<Environment>>,
+              eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let name = match args.next().unwrap() {
+        &Value::Ident(ref s) => (&**s).clone(),
+        & ref other => panic!("set with no name: {:?}", other)
+    };
+
+    let value = args.next().unwrap();
+
+    if args.next().is_some() {
+        panic!("set with more than 2 args");
+    }
+
+    if !env.borrow().is_defined(&name) {
+        return Err(AresError::UndefinedName(name.into()))
     }
 
     let result = try!(eval(value, env));

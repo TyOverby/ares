@@ -5,7 +5,7 @@ use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
 pub use self::foreign_function::{ForeignFunction, FfType};
-pub use self::procedure::Procedure;
+pub use self::procedure::{Procedure, ParamBinding};
 
 mod environment;
 mod foreign_function;

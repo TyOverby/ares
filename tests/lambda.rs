@@ -39,3 +39,8 @@ fn recursive() {
                       (+ s (sum (- s 1))))))
           (sum 4)", 10);
 }
+
+#[test]
+fn list_params() {
+    eval_ok!("((lambda l l) 1 2 3)", vec![1, 2, 3]);
+}
