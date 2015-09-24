@@ -334,43 +334,56 @@ impl<'a> Error for ParseError_<'a> {
     }
 }
 
-fn parse_tokens<'a, 'b>(tok_stream: &'a mut TokenIter<'b>, nesting: i32)
-                            -> Result<Vec<Value>, ParseError<'b>> {
+fn one_expr<'a, 'b>(tok: Token<'b>, tok_stream: &'a mut TokenIter<'b>)
+                     -> Result<Value, ParseError<'b>> {
     use tokenizer::Token::*;
+    match tok {
+        Number(ref s) => Ok(try!(s.parse().map(Value::Int)
+                                 .or_else(|_| s.parse().map(Value::Float))
+                                 .map_err(|e| ParseError(ConversionError(s, Box::new(e)))))),
+        Symbol(ref s) => Ok(s.parse().map(Value::Bool)
+                            .unwrap_or(Value::Ident(Rc::new(s.to_string())))),
+        String(s)     => Ok(Value::String(Rc::new(s))),
+        Quote         => Ok({
+            let quoted = try!(parse_one_expr(tok_stream));
+            Value::new_list(match quoted {
+                None => vec![Value::new_ident("quote")],
+                Some(v) => vec![Value::new_ident("quote"), v]
+            })
+        }),
+        RParen(pos)   => parse_error(ExtraRParen(pos)),
+        LParen        => Ok(try!(parse_list(tok_stream)))
+    }
+}
+
+fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Value>, ParseError<'b>> {
+    if let Some(tok) = tok_stream.next() {
+        one_expr(try!(tok), tok_stream).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn parse_list<'a, 'b>(tok_stream: &'a mut TokenIter<'b>)
+                      -> Result<Value, ParseError<'b>> {
     let mut v = vec![];
     loop {
         if let Some(tok_or_err) = tok_stream.next() {
-            v.push(match try!(tok_or_err) {
-                Number(ref s) => try!(s.parse().map(Value::Int)
-                                      .or_else(|_| s.parse().map(Value::Float))
-                                      .map_err(|e| ParseError(ConversionError(s, Box::new(e))))),
-                Symbol(ref s) => s.parse().map(Value::Bool)
-                                 .unwrap_or(Value::Ident(Rc::new(s.to_string()))),
-                String(s)     => Value::String(Rc::new(s)),
-                Quote         => {
-                    let quoted = try!(parse_tokens(tok_stream, nesting));
-                    let mut quoting = vec![Value::Ident(Rc::new("quote".to_string()))];
-                    quoting.extend(quoted);
-                    Value::List(Rc::new(quoting))
-                },
-                RParen(pos)   => {
-                    if nesting - 1 < 0 {
-                        return parse_error(ExtraRParen(pos))
-                    }
-                    break
-                },
-                LParen        => Value::List(Rc::new(try!(parse_tokens(tok_stream, nesting + 1))))
-            })
-        } else {
-            if nesting > 0 {
-                return parse_error(MissingRParen)
+            match try!(tok_or_err) {
+                Token::RParen(_) => return Ok(Value::List(Rc::new(v))),
+                tok       => v.push(try!(one_expr(tok, tok_stream)))
             }
-            break
+        } else {
+            return parse_error(MissingRParen)
         }
     }
-    Ok(v)
 }
 
 pub fn parse(input: &str) -> Result<Vec<Value>, ParseError> {
-    parse_tokens(&mut TokenIter::new(input), 0)
+    let mut v = vec![];
+    let mut tok_iter = TokenIter::new(input);
+     while let Some(value) = try!(parse_one_expr(&mut tok_iter)) {
+         v.push(value)
+    };
+    Ok(v)
 }

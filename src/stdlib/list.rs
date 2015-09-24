@@ -61,15 +61,20 @@ pub fn build_list(args: &mut Iterator<Item=&Value>,
     Ok(Value::new_list(v.take().unwrap()))
 }
 
+
 pub fn foreach(args: &mut Iterator<Item=&Value>,
               env: &Env,
               eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     let list = match args.next() {
-        Some(&Value::List(ref l)) => l.clone(),
-        Some(v) => return Err(AresError::UnexpectedType{
-            value: v.clone(),
-            expected: "List".into()
-        }),
+        Some(v) => match try!(eval(v, env)) {
+            Value::List(ref l) => l.clone(),
+            v => {
+                return Err(AresError::UnexpectedType{
+                    value: v.clone(),
+                    expected: "List".into()
+                })
+            }
+        },
         None => return Err(AresError::UnexpectedArity {
             found: 0,
             expected: "exactly 2".into()
@@ -77,7 +82,7 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
     };
 
     let func = match args.next() {
-        Some(f) => f.clone(),
+        Some(f) => try!(eval(f, env)).clone(),
         None => return Err(AresError::UnexpectedArity {
             found: 1,
             expected: "exactly 2".into()
@@ -113,3 +118,5 @@ pub static FILTER: &'static str = "(lambda (list fn)
                 (if (fn element)
                     (push element)
                     false))))))";
+
+pub static LIST: &'static str = "(lambda list list)";
