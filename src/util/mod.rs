@@ -93,7 +93,6 @@ pub mod rc_slice {
 
     impl ::std::hash::Hash for RcSlice {
         fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-            use std::mem::transmute;
             self.get_slice().hash(state)
         }
     }

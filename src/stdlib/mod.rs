@@ -6,6 +6,36 @@ pub mod core;
 pub mod types;
 pub mod list;
 
+pub mod util {
+    use ::AresError;
+
+    pub fn unwrap_or_arity_err<T, S>(value: Option<T>, seen_already: u16, expected: S) -> Result<T, AresError>
+    where S: Into<String> {
+        match value {
+            Some(v) => Ok(v),
+            None => Err(AresError::UnexpectedArity {
+                found: seen_already,
+                expected: expected.into()
+            })
+        }
+    }
+
+    pub fn no_more_or_arity_err<S, T, I: ?Sized>(iter: &mut I, seen_already: u16, expected: S) -> Result<(), AresError>
+    where I: Iterator<Item=T>, S: Into<String>
+    {
+        let count = iter.count();
+        if count > 0 {
+            Err(AresError::UnexpectedArity {
+                found: seen_already + count as u16,
+                expected: expected.into()
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+}
+
 pub fn load_all(env: &mut Environment) {
     load_core(env);
     load_list(env);

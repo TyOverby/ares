@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::collections::HashMap;
-use std::cell::RefCell;
 
 use ::{Value, rc_to_usize, write_usize};
 

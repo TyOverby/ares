@@ -4,7 +4,7 @@ pub mod tokenizer;
 mod eval;
 pub mod stdlib;
 mod error;
-mod util;
+pub mod util;
 
 pub use tokenizer::parse;
 pub use eval::{Procedure, eval, ForeignFunction, Env, Environment, ParamBinding};

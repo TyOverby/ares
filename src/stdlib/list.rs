@@ -1,14 +1,12 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
 
-use ::{Value, Environment, Env, Procedure, AresResult, AresError, ForeignFunction};
+use ::{Value, Env, AresResult, AresError, ForeignFunction};
 
 pub fn build_list(args: &mut Iterator<Item=&Value>,
               env: &Env,
               eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
-    let new_env = Environment::new_with_data(env.clone(), HashMap::new());
     let writer = vec.clone();
     let func = move |values: &mut Iterator<Item=Value>| {
         match &mut *writer.borrow_mut() {
@@ -88,6 +86,7 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
     for element in list.iter() {
         let prog = Value::new_list(vec![func.clone(), element.clone()]);
         try!(eval(&prog, env));
+        count += 1;
     }
 
     Ok(Value::Int(count))
