@@ -12,6 +12,20 @@ macro_rules! eval_ok {
     }
 }
 
+macro_rules! eval_err {
+    ($prog: expr, $p: pat) => {
+        match util::e($prog) {
+            Ok(v) => {
+                panic!("eval_err! had a value: {:?}", v);
+            }
+            Err($p) => { assert!(true) },
+            Err(v) => {
+                panic!("eval_err! didn't match: {:?} was not {:?}", v, stringify!($p))
+            }
+        }
+    }
+}
+
 fn basic_environment() -> Rc<RefCell<Environment>> {
     let mut env = Environment::new();
     stdlib::load_all(&mut env);

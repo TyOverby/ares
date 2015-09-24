@@ -1,4 +1,5 @@
 extern crate ares;
+use ares::AresError::*;
 
 #[macro_use]
 mod util;
@@ -10,6 +11,10 @@ fn convert_to_int() {
     eval_ok!("(->int \"10\")", 10);
     eval_ok!("(->int true)", 1);
     eval_ok!("(->int false)", 0);
+
+    eval_err!("(->int (lambda (a) a))", IllegalConversion{..});
+    eval_err!("(->int define)", IllegalConversion{..});
+    eval_err!("(->int 5 5)", UnexpectedArity{..})
 }
 
 #[test]
@@ -17,6 +22,7 @@ fn convert_to_float() {
     eval_ok!("(->float 5)", 5.0);
     eval_ok!("(->float 1.2)", 1.2);
     eval_ok!("(->float \"10\")", 10.0);
+
 }
 
 #[test]
