@@ -93,6 +93,8 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
     Ok(Value::Int(count))
 }
 
+pub static LIST: &'static str = "(lambda l l)";
+
 pub static MAP: &'static str = "(lambda (list fn)
     (build-list
         (lambda (push)

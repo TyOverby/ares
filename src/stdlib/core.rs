@@ -4,8 +4,15 @@ use std::cell::RefCell;
 use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
 
 pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
-    let first = args.next().unwrap();
+    let first = match args.next() {
+        Some(v) => v,
+        None => return Err(AresError::UnexpectedArity {
+            found: 0,
+            expected: "at least 2".into()
+        })
+    };
     let mut seen_2 = false;
+
     for next in args {
         seen_2 = true;
         if next != first {
@@ -14,7 +21,10 @@ pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     }
 
     if !seen_2 {
-        panic!("equals must have at least two args")
+        return Err(AresError::UnexpectedArity {
+            found: 1,
+            expected: "at least 2".into()
+        });
     }
 
     Ok(Value::Bool(true))
@@ -23,10 +33,8 @@ pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
 pub fn lambda(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let names = args.next().unwrap();
-    let bodies  = args.cloned().collect();
-    let param_names = match names {
-        &Value::List(ref v) => {
+    let param_names = match args.next() {
+        Some(&Value::List(ref v)) => {
             let r: Vec<String> = v.iter().map(|n| {
                 if let &Value::Ident(ref s) = n {
                     (&**s).clone()
@@ -36,11 +44,22 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
             }).collect();
             ParamBinding::ParamList(r)
         }
-        &Value::Ident(ref v) => {
+        Some(&Value::Ident(ref v)) => {
             ParamBinding::SingleIdent((**v).clone())
         }
-        _ => panic!("no param names list found for lambda")
+        Some(x) => {
+            return Err(AresError::UnexpectedArgsList(x.clone()));
+        }
+        None => {
+            return Err(AresError::NoLambdaArgsList);
+        }
     };
+
+    let bodies:Vec<_> = args.cloned().collect();
+
+    if bodies.len() == 0 {
+        return Err(AresError::NoLambdaBody);
+    }
 
     Ok(Value::Lambda(
             Procedure::new(
@@ -53,19 +72,33 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
 pub fn define(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let name = match args.next().unwrap() {
-        &Value::Ident(ref s) => (&**s).clone(),
-        & ref other => panic!("define with no name: {:?}", other)
+    let name: String = match args.next() {
+        Some(&Value::Ident(ref s)) => (**s).clone(),
+        Some(&ref other) => return Err(AresError::UnexpectedType {
+            value: other.clone(),
+            expected: "Ident".into()
+        }),
+        None => return Err(AresError::NoNameDefine)
     };
 
     if env.borrow().is_defined_at_this_level(&name) {
         return Err(AresError::AlreadyDefined(name.into()))
     }
 
-    let value = args.next().unwrap();
+    let value = match args.next() {
+        Some(v) => v,
+        None => return Err(AresError::UnexpectedArity {
+            found: 1,
+            expected: "exactly 2".into()
+        })
+    };
 
+    // TODO: check the remaining arg length and make a better error message
     if args.next().is_some() {
-        panic!("define with more than 2 args");
+        return Err(AresError::UnexpectedArity {
+            found: 3,
+            expected: "exactly 2".into()
+        })
     }
 
     let result = try!(eval(value, env));
@@ -76,15 +109,23 @@ pub fn define(args: &mut Iterator<Item=&Value>,
 pub fn set(args: &mut Iterator<Item=&Value>,
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let name = match args.next().unwrap() {
-        &Value::Ident(ref s) => (&**s).clone(),
-        & ref other => panic!("set with no name: {:?}", other)
+    let name = match args.next() {
+        Some(&Value::Ident(ref s)) => (**s).clone(),
+        Some(&ref v) => return Err(AresError::UnexpectedType {
+            value: v.clone(),
+            expected: "Ident".into()
+        }),
+        None => return Err(AresError::NoNameSet)
     };
 
     let value = args.next().unwrap();
 
+    // TODO: check the remaining arg length and make a better error message
     if args.next().is_some() {
-        panic!("set with more than 2 args");
+        return Err(AresError::UnexpectedArity {
+            found: 3,
+            expected: "exactly 2".into()
+        })
     }
 
     if !env.borrow().is_defined(&name) {
@@ -100,8 +141,13 @@ pub fn quote(args: &mut Iterator<Item=&Value>,
               _env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
     let first = args.next().unwrap().clone();
+
+    // TODO: check the remaining arg length and make a better error message
     if args.next().is_some() {
-        panic!("Multiple arguments to quote");
+        return Err(AresError::UnexpectedArity {
+            found: 2,
+            expected: "exactly 1".into()
+        })
     }
     Ok(first)
 }
@@ -115,6 +161,9 @@ pub fn cond(args: &mut Iterator<Item=&Value>,
     match try!(eval(cond, env)) {
         Value::Bool(true) => eval(true_branch, env),
         Value::Bool(false) => eval(false_branch, env),
-        _ => panic!("boolean expected in 'if'")
+        other => return Err(AresError::UnexpectedType {
+            value: other,
+            expected: "Bool".into()
+        })
     }
 }
