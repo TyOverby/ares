@@ -1,4 +1,9 @@
 use ::Environment;
+use ::Value;
+use ::eval::eval;
+use ::parse;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub mod arithmetic;
 pub mod math;
@@ -46,6 +51,20 @@ pub fn load_all(env: &mut Environment) {
     load_types(env);
 }
 
+pub fn basic_environment() -> Rc<RefCell<Environment>> {
+    let mut env = Environment::new();
+    load_all(&mut env);
+    let env = Rc::new(RefCell::new(env));
+    let define = Value::new_ident("define");
+    let _ = vec![list::MAP, list::FOLD_LEFT, list::FILTER, list::LIST].iter()
+        .zip(vec!["map", "foldl", "filter", "list"])
+        .map(|(function, name)| {
+            let parsed = parse(*function).ok().expect("couldn't parse built-in code")[0].clone();
+            eval(&Value::new_list(vec![define.clone(), Value::new_ident(name), parsed]), &env).ok().expect("couldn't eval built-in code");
+        }).collect::<Vec<_>>();
+    env
+}
+
 pub fn load_logical(env: &mut Environment) {
     env.set_uneval_function("and", self::logical::and);
     env.set_uneval_function("or", self::logical::or);
@@ -62,6 +81,7 @@ pub fn load_core(env: &mut Environment) {
 
 pub fn load_list(env: &mut Environment) {
     env.set_uneval_function("build-list", self::list::build_list);
+    env.set_uneval_function("for-each", self::list::foreach);
 }
 
 pub fn load_arithmetic(env: &mut Environment) {
