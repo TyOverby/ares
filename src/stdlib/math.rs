@@ -1,4 +1,5 @@
-use ::{Value, AresResult};
+use ::{Value, AresResult, AresError};
+use super::util::{unwrap_or_arity_err, no_more_or_arity_err};
 
 macro_rules! gen_num_method {
     ($name: ident, $v: path) => {
@@ -9,14 +10,14 @@ macro_rules! gen_num_method {
     };
     ($name: ident, $inv: path, $outv: path, $conv: expr) => {
         pub fn $name(it: &mut Iterator<Item=Value>) -> AresResult<Value> {
-            let value = match it.next() {
-                Some($inv(v)) => $outv($conv(v.$name())),
-                Some(_) => panic!("unexpected math arg"),
-                None => panic!("bad args list")
+            let value = match try!(unwrap_or_arity_err(it.next(), 0, "exactly 1")) {
+                $inv(v) => $outv($conv(v.$name())),
+                other => return Err(AresError::UnexpectedType{
+                    value: other,
+                    expected: stringify!($inv).into()
+                })
             };
-            if it.next().is_some() {
-                panic!("too many arguments");
-            }
+            try!(no_more_or_arity_err(it, 1, "exactly 1"));
             Ok(value)
         }
     }
