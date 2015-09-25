@@ -54,7 +54,7 @@ pub fn load_all(env: &mut Environment) {
 pub fn basic_environment() -> Rc<RefCell<Environment>> {
     let mut env = Environment::new();
     load_all(&mut env);
-    let mut env = Rc::new(RefCell::new(env));
+    let env = Rc::new(RefCell::new(env));
     let define = Value::new_ident("define");
     let _ = vec![list::MAP, list::FOLD_LEFT, list::FILTER, list::LIST].iter()
         .zip(vec!["map", "foldl", "filter", "list"])

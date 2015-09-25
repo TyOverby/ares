@@ -119,5 +119,3 @@ pub static FILTER: &'static str = "(lambda (list fn)
                 (if (fn element)
                     (push element)
                     false))))))";
-
-pub static LIST: &'static str = "(lambda list list)";
