@@ -35,6 +35,7 @@ pub fn is_executable(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
             _ => return Ok(false.into())
         }
     }
+
     Ok(true.into())
 }
 

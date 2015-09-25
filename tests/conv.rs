@@ -22,7 +22,11 @@ fn convert_to_float() {
     eval_ok!("(->float 5)", 5.0);
     eval_ok!("(->float 1.2)", 1.2);
     eval_ok!("(->float \"10\")", 10.0);
+    eval_ok!("(->float \"10.5\")", 10.5);
 
+    eval_err!("(->float (lambda (a) a))", IllegalConversion{..});
+    eval_err!("(->float define)", IllegalConversion{..});
+    eval_err!("(->float 5 5)", UnexpectedArity{..})
 }
 
 #[test]
@@ -31,6 +35,9 @@ fn convert_to_bool() {
     eval_ok!("(->bool false)", false);
     eval_ok!("(->bool 1)", true);
     eval_ok!("(->bool 0)", false);
+    eval_ok!("(->bool 1.0)", true);
+    eval_ok!("(->bool 5.0)", true);
+    eval_ok!("(->bool 0.0)", false);
 }
 
 #[test]
@@ -46,6 +53,8 @@ fn convert_to_string() {
 #[test]
 fn is_int() {
     eval_ok!("(int? 1)", true);
+    eval_ok!("(int? 1 2 3)", true);
+    eval_ok!("(int? 1 2 false)", false);
 
     eval_ok!("(int? 1.0)", false);
     eval_ok!("(int? true)", false);
