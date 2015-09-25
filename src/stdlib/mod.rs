@@ -5,6 +5,7 @@ pub mod math;
 pub mod core;
 pub mod types;
 pub mod list;
+pub mod logical;
 
 pub mod util {
     use ::AresError;
@@ -37,11 +38,18 @@ pub mod util {
 }
 
 pub fn load_all(env: &mut Environment) {
+    load_logical(env);
     load_core(env);
     load_list(env);
     load_math(env);
     load_arithmetic(env);
     load_types(env);
+}
+
+pub fn load_logical(env: &mut Environment) {
+    env.set_uneval_function("and", self::logical::and);
+    env.set_uneval_function("or", self::logical::or);
+    env.set_uneval_function("xor", self::logical::xor);
 }
 
 pub fn load_core(env: &mut Environment) {
