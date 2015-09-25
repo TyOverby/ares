@@ -1,9 +1,12 @@
 use ::Value;
+use ::tokenizer::ParseError;
 
 pub type AresResult<T> = Result<T, AresError>;
 
 #[derive(Debug)]
 pub enum AresError {
+    ParseError(ParseError),
+
     UnexpectedType{value: Value, expected: String},
     UnexpectedArity{found: u16, expected: String},
 
