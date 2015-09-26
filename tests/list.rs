@@ -26,6 +26,6 @@ fn test_map() {
 
 #[test]
 fn test_fold_left() {
-    // eval_ok!("(fold-left (list 1 2 3) 0 (lambda (a b) (+ a b)))", 6); // Shit, this is
-    // legitimately failing.
+    eval_ok!("(fold-left (list 1 2 3) 0 (lambda (a b) (+ a b)))", 6);
+    eval_ok!("(fold-left '(1 2 3) 1 *)", 6);
 }
