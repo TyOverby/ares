@@ -85,9 +85,10 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
     Ok(Value::Int(count))
 }
 
-pub static LIST: &'static str = "(lambda l l)";
+pub static LIST: &'static str = "(lambda list list)";
 
-pub static MAP: &'static str = "(lambda (list fn)
+pub static MAP: &'static str =
+"(lambda (list fn)
     (build-list
         (lambda (push)
             (for-each list (lambda (element)
@@ -100,7 +101,8 @@ pub static FOLD_LEFT: &'static str =
     ))
     default)";
 
-pub static FILTER: &'static str = "(lambda (list fn)
+pub static FILTER: &'static str =
+"(lambda (list fn)
     (build-list
         (lambda (push)
             (for-each list (lambda (element)
