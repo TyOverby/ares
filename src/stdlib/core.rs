@@ -83,7 +83,7 @@ pub fn define(args: &mut Iterator<Item=&Value>,
     try!(no_more_or_arity_err(args, 2, "exactly 2"));
 
     let result = try!(eval(value, env));
-    env.borrow_mut().insert(name, result.clone());
+    env.borrow_mut().insert_current_level(name, result.clone());
     Ok(result)
 }
 
@@ -106,8 +106,9 @@ pub fn set(args: &mut Iterator<Item=&Value>,
         return Err(AresError::UndefinedName(name.into()))
     }
 
+
     let result = try!(eval(value, env));
-    env.borrow_mut().insert(name, result.clone());
+    env.borrow_mut().with_value_mut(&name, |v| *v = result.clone());
     Ok(result)
 }
 

@@ -73,7 +73,7 @@ impl Environment {
         }
     }
 
-    pub fn insert(&mut self, name: String, value: Value) -> Option<Value> {
+    pub fn insert_current_level(&mut self, name: String, value: Value) -> Option<Value> {
         self.bindings.insert(name, value)
     }
 
