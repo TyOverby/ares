@@ -10,9 +10,9 @@ use term_painter::Color::*;
 use term_painter::ToStyle;
 
 fn main() {
-    let mut env = ares::Environment::new();
-    ares::stdlib::load_all(&mut env);
+    let env = ares::Environment::new();
     let mut env = Rc::new(RefCell::new(env));
+    ares::stdlib::load_all(&env);
 
     let stdin = io::stdin();
     for line in stdin.lock().lines().take_while(|a| a.is_ok()).filter_map(|a| a.ok()) {

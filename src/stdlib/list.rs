@@ -2,10 +2,11 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use ::{Value, Env, AresResult, AresError, ForeignFunction};
+use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
 
 pub fn build_list(args: &mut Iterator<Item=&Value>,
-              env: &Env,
-              eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+                  env: &Env,
+                  eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
     let writer = vec.clone();
     let func = move |values: &mut Iterator<Item=Value>| {
@@ -60,27 +61,19 @@ pub fn build_list(args: &mut Iterator<Item=&Value>,
 }
 
 pub fn foreach(args: &mut Iterator<Item=&Value>,
-              env: &Env,
-              eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
-    let list = match args.next() {
-        Some(&Value::List(ref l)) => l.clone(),
-        Some(v) => return Err(AresError::UnexpectedType{
-            value: v.clone(),
+               env: &Env,
+               eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+    let should_be_list = try!(unwrap_or_arity_err(args.next(), 0, "exactly 2"));
+    let list = match try!(eval(should_be_list, env)) {
+        Value::List(ref l) => l.clone(),
+        other => return Err(AresError::UnexpectedType{
+            value: other,
             expected: "List".into()
         }),
-        None => return Err(AresError::UnexpectedArity {
-            found: 0,
-            expected: "exactly 2".into()
-        })
     };
 
-    let func = match args.next() {
-        Some(f) => f.clone(),
-        None => return Err(AresError::UnexpectedArity {
-            found: 1,
-            expected: "exactly 2".into()
-        })
-    };
+    let func = try!(unwrap_or_arity_err(args.next().cloned(), 1, "exactly 2"));
+    try!(no_more_or_arity_err(args, 2, "exactly 2"));
 
     let mut count = 0;
     for element in list.iter() {
@@ -101,9 +94,9 @@ pub static MAP: &'static str = "(lambda (list fn)
                 (push (fn element)))))))";
 
 pub static FOLD_LEFT: &'static str =
-"(lambda (default list fn)
+"(lambda (list default fn)
     (for-each list (lambda (element)
-        (set! default (fn default element))
+        (set default (fn default element))
     ))
     default)";
 

@@ -27,9 +27,10 @@ macro_rules! eval_err {
 }
 
 fn basic_environment() -> Rc<RefCell<Environment>> {
-    let mut env = Environment::new();
-    stdlib::load_all(&mut env);
-    Rc::new(RefCell::new(env))
+    let env = Environment::new();
+    let env = Rc::new(RefCell::new(env));
+    stdlib::load_all(&env);
+    env
 }
 
 pub fn e(program: &str) -> AresResult<Value> {

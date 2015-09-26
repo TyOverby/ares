@@ -1,4 +1,4 @@
-use ::Environment;
+use ::Env;
 
 pub mod arithmetic;
 pub mod math;
@@ -37,7 +37,15 @@ pub mod util {
 
 }
 
-pub fn load_all(env: &mut Environment) {
+fn eval_into<S: AsRef<str>>(src: &S, env: &Env) {
+    use ::{eval, parse};
+    let parsed = parse(src.as_ref()).unwrap();
+    for statement in &parsed {
+        eval(statement, env).unwrap();
+    }
+}
+
+pub fn load_all(env: &Env) {
     load_logical(env);
     load_core(env);
     load_list(env);
@@ -46,25 +54,37 @@ pub fn load_all(env: &mut Environment) {
     load_types(env);
 }
 
-pub fn load_logical(env: &mut Environment) {
+pub fn load_logical(env: &Env) {
+    let mut env = env.borrow_mut();
     env.set_uneval_function("and", self::logical::and);
     env.set_uneval_function("or", self::logical::or);
     env.set_uneval_function("xor", self::logical::xor);
 }
 
-pub fn load_core(env: &mut Environment) {
+pub fn load_core(env: &Env) {
+    let mut env = env.borrow_mut();
     env.set_uneval_function("quote", self::core::quote);
     env.set_uneval_function("if", self::core::cond);
-    env.set_uneval_function("set!", self::core::set);
+    env.set_uneval_function("set", self::core::set);
     env.set_uneval_function("define", self::core::define);
     env.set_uneval_function("lambda", self::core::lambda);
 }
 
-pub fn load_list(env: &mut Environment) {
-    env.set_uneval_function("build-list", self::list::build_list);
+pub fn load_list(env: &Env) {
+    {
+        let mut env = env.borrow_mut();
+        env.set_uneval_function("build-list", self::list::build_list);
+        env.set_uneval_function("for-each", self::list::foreach);
+    }
+    eval_into(&format!("(define list {})", self::list::LIST), env);
+    eval_into(&format!("(define map {})", self::list::MAP), env);
+    eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT), env);
+    eval_into(&format!("(define filter {})", self::list::FILTER), env);
+
 }
 
-pub fn load_arithmetic(env: &mut Environment) {
+pub fn load_arithmetic(env: &Env) {
+    let mut env = env.borrow_mut();
     env.set_function("=", self::core::equals);
     env.set_function("+", self::arithmetic::add_ints);
     env.set_function("+.", self::arithmetic::add_floats);
@@ -79,7 +99,8 @@ pub fn load_arithmetic(env: &mut Environment) {
     env.set_function("/.", self::arithmetic::div_floats);
 }
 
-pub fn load_math(env: &mut Environment) {
+pub fn load_math(env: &Env) {
+    let mut env = env.borrow_mut();
     env.set_function("nan?", self::math::is_nan);
     env.set_function("infinite?", self::math::is_infinite);
     env.set_function("finite?", self::math::is_finite);
@@ -131,7 +152,8 @@ pub fn load_math(env: &mut Environment) {
     env.set_function("negative?", self::math::is_negative);
 }
 
-pub fn load_types(env: &mut Environment) {
+pub fn load_types(env: &Env) {
+    let mut env = env.borrow_mut();
     env.set_function("->int", self::types::to_int);
     env.set_function("->float", self::types::to_float);
     env.set_function("->string", self::types::to_string);
