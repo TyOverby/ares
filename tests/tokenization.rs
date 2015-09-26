@@ -38,12 +38,16 @@ fn strings() {
 (\"
 sdf", "Unterminated string beginning at line 2, column 2");
     parse_fail!("x \"\\", "Unterminated string beginning at line 1, column 3");
+    parse_fail!("x \"\\x2", "Unterminated string beginning at line 1, column 3");
+    parse_fail!("x \"\\u", "Unterminated string beginning at line 1, column 3");
     parse_ok!("\"\\\"\"", "\"");
     parse_ok!("\"\\x22\"", "\"");
     parse_ok!("\"\\u{2764}\"", "❤");
-    parse_fail!("\"\\x99\"", "Invalid escape sequence starting at line 1, column 1: \\x9");
-    parse_fail!("\"\\x1x\"", "Invalid escape sequence starting at line 1, column 1: \\x1x");
-    parse_fail!("\"\\u{999999}\"", "Invalid escape sequence starting at line 1, column 1: \\u{999999}");
+    parse_ok!("\"fo\\no\"", "fo\no");
+    parse_fail!("\"fo\\wo\"", "Invalid escape sequence starting at line 1, column 4: \\w");
+    parse_fail!("\"\\x99\"", "Invalid escape sequence starting at line 1, column 2: \\x9");
+    parse_fail!("\"z\\x1x\"", "Invalid escape sequence starting at line 1, column 3: \\x1x");
+    parse_fail!("\"\\u{999999}\"", "Invalid escape sequence starting at line 1, column 2: \\u{999999}");
     parse_fail!("(->int \"10\"x 5)", "Unexpected character x at line 1, column 12, while parsing a string starting at line 1, column 8");
 }
 
@@ -67,4 +71,14 @@ fn numbers() {
 fn symbols()
 {
     parse_ok!("(foo-bz! ?? *wo+mp* +foo)");
+}
+
+#[test]
+fn quote()
+{
+    parse_ok!("(foo '(1 2))");
+    parse_ok!("(foo '(1 (2 3) \"df)\"))");
+    // these are admittedly weird error messages.
+    parse_fail!("(foo ')", "Extra right parenthesis at line 1, column 7");
+    parse_fail!("(foo '", "Missing right parenthesis");
 }
