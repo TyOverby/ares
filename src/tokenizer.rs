@@ -8,13 +8,13 @@ use std::char;
 use ::Value;
 
 #[derive(Debug, Clone)]
-enum Token<'a> {
+enum Token {
     RParen(Position),
     LParen,
     Quote,
     String(String),
     Number(String),
-    Symbol(&'a str)
+    Symbol(String)
 }
 
 struct TokenIter<'a>
@@ -38,7 +38,7 @@ enum ParseError_ {
     ConversionError(String, Box<Error>),
     BadEscape(Position, String),
     MissingRParen,
-    ExtraRParen(Position)
+    ExtraRParen(Position),
 }
 
 #[derive(Debug)]
@@ -78,7 +78,7 @@ macro_rules! delimcheck {
 
 impl<'a> Iterator for TokenIter<'a>
 {
-    type Item = Result<Token<'a>, ParseError>;
+    type Item = Result<Token, ParseError>;
     fn next<'b>(&'b mut self) -> Option<Self::Item> {
         self.skip_ws();
         if let Some((start, curchar, pos)) = self.iter.next() {
@@ -126,17 +126,18 @@ impl<'a> TokenIter<'a>
         }
     }
 
-    fn read_u_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError> {
+    fn read_u_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
+                         -> Result<char, ParseError> {
         let (chars, brace) = self.take_until(|c| c == '}');
         let brace = brace.unwrap_or(self.input.len());
         match chars.len() {
-            0 => parse_error(UnterminatedString(startpos)),
-            l if l > 8 => parse_error(BadEscape(startpos, self.input[start..chars[8].0].into())),
+            0 => parse_error(UnterminatedString(string_start)),
+            l if l > 8 => parse_error(BadEscape(escape_start, self.input[start..chars[8].0].into())),
             l => {
                 if chars[0].1 != '{' ||
                     !(chars.iter().skip(1).take(l-1)
                       .map(|&(_,c,_)| c).all(|c| c.is_digit(16))) {
-                    parse_error(BadEscape(startpos, self.input[start..brace+1].into()))
+                    parse_error(BadEscape(escape_start, self.input[start..brace+1].into()))
                 } else {
                     let ival = chars
                         .iter()
@@ -144,60 +145,67 @@ impl<'a> TokenIter<'a>
                         .take(l-1).fold(0, |acc, &(_, c, _)|
                                         acc * 16 + (c as u32 - '0' as u32));
                     char::from_u32(ival)
-                            .ok_or(ParseError(BadEscape(startpos, self.input[start..brace+1].into())))
+                            .ok_or(ParseError(BadEscape(escape_start, self.input[start..brace+1].into())))
                 }
             }
         }
     }
 
-    fn read_x_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError> {
+    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position) 
+                         -> Result<char, ParseError> {
         // hand-rolled version of self.iter.take(2).collect()
         let v : Vec<_> = self.iter.next().map_or(vec![], (|x| self.iter.next().map_or(vec![x], |y| vec![x,y])));
         if v.len() < 2 {
-            parse_error(UnterminatedString(startpos))
+            parse_error(UnterminatedString(string_start))
         } else {
             let c1 = v[0].1;
             let (end_index, c2, _) = v[1];
             if c1 > '7' || c1 < '0' {
-                parse_error(BadEscape(startpos, self.input[start..end_index].into()))
+                parse_error(BadEscape(escape_start, self.input[start..end_index].into()))
             } else {
                 match c2 {
                     '0' ... '9' | 'a' ... 'f' | 'A' ... 'F' => {
                         let zero = '0' as u32;
                         let ival = (c1 as u32 - zero) * 16 + (c2 as u32 - zero);
                         char::from_u32(ival)
-                            .ok_or(ParseError(BadEscape(startpos, self.input[start..end_index].into())))
+                            .ok_or(ParseError(BadEscape(escape_start, self.input[start..end_index].into())))
                     },
-                    _ => parse_error(BadEscape(startpos, self.input[start..end_index+1].into()))
+                    _ => parse_error(BadEscape(escape_start, self.input[start..end_index+1].into()))
                 }
             }
         }
     }
 
-    fn read_escape<'b>(&'b mut self, start: usize, startpos: Position) -> Result<char, ParseError> {
-        if let Some((_, c, _pos)) = self.iter.next() {
+    fn read_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
+                       -> Result<char, ParseError> {
+        if let Some((end, c, _pos)) = self.iter.next() {
             match c {
-                'x' => self.read_x_escape(start, startpos),
-                'u' => self.read_u_escape(start, startpos),
-                _ => Ok(c)
+                'x' => self.read_x_escape(start, escape_start, string_start),
+                'u' => self.read_u_escape(start, escape_start, string_start),
+                't' => Ok('\t'),
+                'r' => Ok('\r'),
+                '\'' => Ok('\''),
+                '"' => Ok('"'),
+                'n' => Ok('\n'),
+                _ => parse_error(BadEscape(escape_start, self.input[start..end+1].into()))
             }
         } else {
-            parse_error(UnterminatedString(startpos))
+            parse_error(UnterminatedString(string_start))
         }
     }
 
-    fn read_string<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token<'a>, ParseError> {
+    fn read_string<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token, ParseError> {
         let mut start = Some(start);
         let mut string = String::new();
         loop {
             let next = self.iter.next();
             match next {
                 None => return parse_error(UnterminatedString(startpos)),
-                Some((j, c, _pos)) => {
+                Some((j, c, pos)) => {
                     if start.is_none() { start = Some(j); }
                     if c == '\\' {
                         string.push_str(&self.input[start.unwrap()..j]);
-                        string.push(try!(self.read_escape(start.unwrap(), startpos)));
+                        string.push(try!(self.read_escape(j, pos, startpos)));
                         start = None;
                     } else if c == '"' {
                         string.push_str(&self.input[start.unwrap()..j]);
@@ -212,7 +220,7 @@ impl<'a> TokenIter<'a>
         Ok(Token::String(string)) //&self.input[start..stop]))
     }
 
-    fn read_number<'b>(&'b mut self, start: usize, start_pos: Position) -> Result<Token<'a>, ParseError> {
+    fn read_number<'b>(&'b mut self, start: usize, start_pos: Position) -> Result<Token, ParseError> {
         let stop;
         loop {
             if let Some(&(j, c, pos)) = self.iter.peek() {
@@ -231,14 +239,14 @@ impl<'a> TokenIter<'a>
     }
 
     fn read_symbol<'b>(&'b mut self, symstart: char, start: usize, start_pos: Position)
-                   -> Result<Token<'a>, ParseError> {
+                   -> Result<Token, ParseError> {
         let stop;
         if let Some(&(j, c, _pos)) = self.iter.peek() {
             if c.is_digit(10) && (symstart == '+' || symstart == '-') {
                 self.iter.next();
                 return self.read_number(start, start_pos)
             } else if is_delimiter_c(c) {
-                return Ok(Token::Symbol(&self.input[start..j]))
+                return Ok(Token::Symbol(self.input[start..j].into()))
             }
         }
         self.iter.next();
@@ -255,7 +263,7 @@ impl<'a> TokenIter<'a>
                 break
             }
         }
-        Ok(Token::Symbol(&self.input[start..stop]))
+        Ok(Token::Symbol(self.input[start..stop].into()))
     }
 }
 
@@ -333,43 +341,56 @@ impl Error for ParseError_ {
     }
 }
 
-fn parse_tokens<'a, 'b>(tok_stream: &'a mut TokenIter<'b>, nesting: i32)
-                            -> Result<Vec<Value>, ParseError> {
+fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
+                     -> Result<Value, ParseError> {
     use tokenizer::Token::*;
+    match tok {
+        Number(s) => Ok(try!(s.parse().map(Value::Int)
+                                 .or_else(|_| s.parse().map(Value::Float))
+                                 .map_err(|e| ParseError(ConversionError(s, Box::new(e)))))),
+        Symbol(s) => Ok(s.parse().map(Value::Bool)
+                        .unwrap_or(Value::Ident(Rc::new(s)))),
+        String(s)     => Ok(Value::String(Rc::new(s))),
+        Quote         => Ok({
+            let quoted = try!(parse_one_expr(tok_stream));
+            Value::new_list(match quoted {
+                None => vec![Value::new_ident("quote")],
+                Some(v) => vec![Value::new_ident("quote"), v]
+            })
+        }),
+        RParen(pos)   => parse_error(ExtraRParen(pos)),
+        LParen        => Ok(try!(parse_list(tok_stream)))
+    }
+}
+
+fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Value>, ParseError> {
+    if let Some(tok) = tok_stream.next() {
+        one_expr(try!(tok), tok_stream).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn parse_list<'a, 'b>(tok_stream: &'a mut TokenIter<'b>)
+                      -> Result<Value, ParseError> {
     let mut v = vec![];
     loop {
         if let Some(tok_or_err) = tok_stream.next() {
-            v.push(match try!(tok_or_err) {
-                Number(ref s) => try!(s.parse().map(Value::Int)
-                                      .or_else(|_| s.parse().map(Value::Float))
-                                      .map_err(|e| ParseError(ConversionError(s.clone(), Box::new(e))))),
-                Symbol(ref s) => s.parse().map(Value::Bool)
-                                 .unwrap_or(Value::Ident(Rc::new(s.to_string()))),
-                String(s)     => Value::String(Rc::new(s)),
-                Quote         => {
-                    let quoted = try!(parse_tokens(tok_stream, nesting));
-                    let mut quoting = vec![Value::Ident(Rc::new("quote".to_string()))];
-                    quoting.extend(quoted);
-                    Value::List(Rc::new(quoting))
-                },
-                RParen(pos)   => {
-                    if nesting - 1 < 0 {
-                        return parse_error(ExtraRParen(pos))
-                    }
-                    break
-                },
-                LParen        => Value::List(Rc::new(try!(parse_tokens(tok_stream, nesting + 1))))
-            })
-        } else {
-            if nesting > 0 {
-                return parse_error(MissingRParen)
+            match try!(tok_or_err) {
+                Token::RParen(_) => return Ok(Value::List(Rc::new(v))),
+                tok       => v.push(try!(one_expr(tok, tok_stream)))
             }
-            break
+        } else {
+            return parse_error(MissingRParen)
         }
     }
-    Ok(v)
 }
 
 pub fn parse(input: &str) -> Result<Vec<Value>, ParseError> {
-    parse_tokens(&mut TokenIter::new(input), 0)
+    let mut v = vec![];
+    let mut tok_iter = TokenIter::new(input);
+     while let Some(value) = try!(parse_one_expr(&mut tok_iter)) {
+         v.push(value)
+    };
+    Ok(v)
 }

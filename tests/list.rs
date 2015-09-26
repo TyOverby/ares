@@ -21,6 +21,7 @@ fn test_list() {
 #[test]
 fn test_map() {
     eval_ok!("(map (list 1 2 3) (lambda (x) (* x 2)))", vec![2, 4, 6]);
+    eval_ok!("(map '(1 2 3) (lambda (x) (* x 2)))", vec![2, 4, 6]);
 }
 
 #[test]
