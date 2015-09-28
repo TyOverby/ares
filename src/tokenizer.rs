@@ -151,7 +151,7 @@ impl<'a> TokenIter<'a>
         }
     }
 
-    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position) 
+    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
                          -> Result<char, ParseError> {
         // hand-rolled version of self.iter.take(2).collect()
         let v : Vec<_> = self.iter.next().map_or(vec![], (|x| self.iter.next().map_or(vec![x], |y| vec![x,y])));
@@ -294,13 +294,13 @@ fn parse_error<T>(p: ParseError_) -> Result<T, ParseError> {
     Err(ParseError(p))
 }
 
-impl<'a> fmt::Display for ParseError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl<'a> Error for ParseError {
+impl Error for ParseError {
     fn description(&self) -> &str { self.0.description() }
 }
 
