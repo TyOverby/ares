@@ -6,6 +6,7 @@ pub type AresResult<T> = Result<T, AresError>;
 #[derive(Debug)]
 pub enum AresError {
     ParseError(ParseError),
+    NoProgram,
 
     UnexpectedType{value: Value, expected: String},
     UnexpectedArity{found: u16, expected: String},
@@ -19,6 +20,7 @@ pub enum AresError {
     UndefinedName(String),
     InvalidState(String),
 
+    // TODO: NoNamedSet, NoValuedSet
     NoNameSet,
     NoValueSet,
 
@@ -29,3 +31,8 @@ pub enum AresError {
     MultiValueDefine,
 }
 
+impl From<ParseError> for AresError {
+    fn from(pe: ParseError) -> AresError {
+        AresError::ParseError(pe)
+    }
+}

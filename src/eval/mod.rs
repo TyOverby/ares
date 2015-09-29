@@ -6,10 +6,12 @@ use super::{Value, AresError, AresResult};
 pub use self::environment::{Env, Environment};
 pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn};
 pub use self::procedure::{Procedure, ParamBinding};
+pub use self::context::Context;
 
 mod environment;
 mod foreign_function;
 mod procedure;
+mod context;
 
 pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
     match value {
@@ -49,7 +51,6 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
         }
     }
 }
-
 
 pub fn apply<'a>(func: &Value, args: &[Value], env: &'a Env) -> AresResult<Value>
 {

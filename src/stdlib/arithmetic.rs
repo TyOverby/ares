@@ -15,7 +15,9 @@ macro_rules! gen_fold {
                 });
             }
         }
-        Ok($var(try!($extr(cur))))
+        let res: AresResult<_> = $extr(cur);
+        let res = try!(res);
+        Ok($var(res))
         }
     };
     ($args: expr, $default: expr, $var: path, $op: expr) => {

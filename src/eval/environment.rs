@@ -18,7 +18,6 @@ impl Environment {
         }
     }
 
-
     pub fn new_with_data(env: Env, bindings: HashMap<String, Value>) -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),

@@ -17,6 +17,7 @@ pub use eval::{
     ParamBinding,
     free_fn,
     ast_fn,
+    Context
 };
 pub use error::{AresError, AresResult};
 
