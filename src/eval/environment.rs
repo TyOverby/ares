@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-use ::{Value, AresResult};
+use ::{Value, AresResult, Function};
 
 use super::{ForeignFunction};
 
@@ -83,7 +83,7 @@ impl Environment {
         let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed)));
+            Value::LispFunction(Function::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed))));
     }
 
     pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
@@ -92,7 +92,7 @@ impl Environment {
         let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
         self.bindings.insert(
             name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
+            Value::LispFunction(Function::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed))));
     }
 }
 

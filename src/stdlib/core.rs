@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
+use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding, Function};
 use super::util::{unwrap_or_arity_err, no_more_or_arity_err};
 
 pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
@@ -55,12 +55,13 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
         return Err(AresError::NoLambdaBody);
     }
 
-    Ok(Value::Lambda(
+    Ok(Value::LispFunction(
+        Function::Lambda(
             Procedure::new(
                 None,
                 Rc::new(bodies),
                 param_names,
-                env.clone())))
+                env.clone()))))
 }
 
 pub fn define(args: &mut Iterator<Item=&Value>,
