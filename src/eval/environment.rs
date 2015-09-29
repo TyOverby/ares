@@ -73,26 +73,8 @@ impl Environment {
         }
     }
 
-    pub fn insert_current_level(&mut self, name: String, value: Value) -> Option<Value> {
-        self.bindings.insert(name, value)
-    }
-
-    pub fn set_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
-    {
-        let boxed: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>> = Rc::new(f);
-        self.bindings.insert(
-            name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_free_function(name.to_string(), boxed)));
-    }
-
-    pub fn set_uneval_function<F>(&mut self, name: &str, f: F)
-    where F: Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
-    {
-        let boxed: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>> = Rc::new(f);
-        self.bindings.insert(
-            name.to_string(),
-            Value::ForeignFn(ForeignFunction::new_uneval_function(name.to_string(), boxed)));
+    pub fn insert_here<S: Into<String>>(&mut self, name: S, value: Value) -> Option<Value> {
+        self.bindings.insert(name.into(), value)
     }
 }
 

@@ -7,49 +7,36 @@ pub use super::environment::{Env, Environment};
 #[derive(Clone)]
 pub struct ForeignFunction {
     pub name: String,
-    pub function: FfType
+    pub function: Rc<Fn(&[Value], &Env, Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>
 }
 
-#[derive(Clone)]
-pub enum FfType{
-    FreeFn(Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>),
-    //ContextFn(Rc<Fn(&mut T, &mut Iterator<Item=Value>) -> Value>),
-    UnEvalFn(Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>)
+pub fn free_fn<S, F>(name: S, func: F) -> Value
+where S: Into<String>,
+      F: Fn(&[Value]) -> AresResult<Value> + 'static
+{
+    let closure = |values: &[Value], env: &Env, eval: Fn(&Value, &Env) -> AresResult<Value>| {
+        let evaluated: Vec<_> = values.iter().map(|v| eval(v, env)).collect();
+        func(&evaluated)
+    };
+    let boxed = Rc::new(closure);
+    Value::ForeignFn(ForeignFunction {
+        name: name.into(),
+        function: boxed
+    })
 }
 
-impl ForeignFunction {
-    pub fn new_free_function(
-        name: String,
-        function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>)
-        -> ForeignFunction
-    {
-        ForeignFunction {
-            name: name,
-            function: FfType::FreeFn(function)
-        }
-    }
 
-    pub fn new_uneval_function(
-        name: String,
-        function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
-    {
-        ForeignFunction {
-            name: name,
-            function: FfType::UnEvalFn(function)
-        }
-    }
-
-    fn to_usize(&self) -> usize {
-        match &self.function {
-            &FfType::FreeFn(ref rc) => {
-                rc_to_usize(rc)
-            }
-            &FfType::UnEvalFn(ref rc) => {
-                rc_to_usize(rc)
-            }
-        }
-    }
+pub fn ast_fn<S, F>(name: S, func: F) -> Value
+where S: Into<String>,
+      F: Fn(&[Value], &Env, Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
+{
+    let boxed = Rc::new(func);
+    Value::ForeignFn(ForeignFunction {
+        name: name.into(),
+        function: boxed
+    })
 }
+
 
 impl ::std::fmt::Debug for ForeignFunction {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
@@ -60,7 +47,7 @@ impl ::std::fmt::Debug for ForeignFunction {
 impl PartialEq for ForeignFunction {
     fn eq(&self, other: &ForeignFunction) -> bool {
         self.name == other.name &&
-        self.to_usize() == other.to_usize()
+        rc_to_usize(&self.function) == rc_to_usize(&other.function)
     }
 }
 
@@ -68,7 +55,7 @@ impl Eq for ForeignFunction {}
 
 impl ::std::hash::Hash for ForeignFunction {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-        write_usize(self.to_usize(), state);
+        write_usize(rc_to_usize(&self.function), state);
     }
 }
 

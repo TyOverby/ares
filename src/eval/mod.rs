@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
-pub use self::foreign_function::{ForeignFunction, FfType};
+pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn};
 pub use self::procedure::{Procedure, ParamBinding};
 
 mod environment;
@@ -46,7 +46,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                     }
                     last.ok_or(AresError::NoLambdaBody)
                 }
-                Value::ForeignFn(ff) => {
+                /*Value::ForeignFn(ff) => {
                     match ff.function {
                         FfType::FreeFn(ff) => {
                             let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
@@ -55,7 +55,7 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                         }
                         FfType::UnEvalFn(uef) => (uef)(&mut items, env, &|v, e| eval(v, e))
                     }
-                }
+                }*/
                 x => Err(AresError::UnexecutableValue(x))
             }
         }
