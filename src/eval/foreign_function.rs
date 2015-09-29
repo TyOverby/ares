@@ -5,10 +5,7 @@ use ::{Value, AresResult, rc_to_usize, write_usize};
 pub use super::environment::{Env, Environment};
 
 #[derive(Clone)]
-pub struct ForeignFunction {
-    pub name: String,
-    pub function: FfType
-}
+pub struct ForeignFunction(pub String, pub FfType);
 
 #[derive(Clone)]
 pub enum FfType{
@@ -23,24 +20,18 @@ impl ForeignFunction {
         function: Rc<Fn(&mut Iterator<Item=Value>) -> AresResult<Value>>)
         -> ForeignFunction
     {
-        ForeignFunction {
-            name: name,
-            function: FfType::FreeFn(function)
-        }
+        ForeignFunction(name, FfType::FreeFn(function))
     }
 
     pub fn new_uneval_function(
         name: String,
         function: Rc<Fn(&mut Iterator<Item=&Value>, &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>) -> ForeignFunction
     {
-        ForeignFunction {
-            name: name,
-            function: FfType::UnEvalFn(function)
-        }
+        ForeignFunction (name, FfType::UnEvalFn(function))
     }
 
     fn to_usize(&self) -> usize {
-        match &self.function {
+        match &self.1 {
             &FfType::FreeFn(ref rc) => {
                 rc_to_usize(rc)
             }
@@ -53,13 +44,13 @@ impl ForeignFunction {
 
 impl ::std::fmt::Debug for ForeignFunction {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
-        fmt.write_str(&self.name)
+        fmt.write_str(&self.0)
     }
 }
 
 impl PartialEq for ForeignFunction {
     fn eq(&self, other: &ForeignFunction) -> bool {
-        self.name == other.name &&
+        self.0 == other.0 &&
         self.to_usize() == other.to_usize()
     }
 }

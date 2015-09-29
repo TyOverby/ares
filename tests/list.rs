@@ -29,3 +29,8 @@ fn test_fold_left() {
     eval_ok!("(fold-left (list 1 2 3) 0 (lambda (a b) (+ a b)))", 6);
     eval_ok!("(fold-left '(1 2 3) 1 *)", 6);
 }
+
+#[test]
+fn test_concat() {
+    eval_ok!("(concat '(1 2) '(3 4))", vec![1, 2, 3, 4]);
+}

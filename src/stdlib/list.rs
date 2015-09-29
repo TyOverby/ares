@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Env, AresResult, AresError, ForeignFunction};
+use ::{Value, Env, AresResult, AresError, ForeignFunction, apply};
 use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
 
 pub fn build_list(args: &mut Iterator<Item=&Value>,
@@ -74,11 +74,12 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
 
     let func = try!(unwrap_or_arity_err(args.next().cloned(), 1, "exactly 2"));
     try!(no_more_or_arity_err(args, 2, "exactly 2"));
+    let func = try!(eval(&func, env));
 
     let mut count = 0;
     for element in list.iter() {
-        let prog = Value::new_list(vec![func.clone(), element.clone()]);
-        try!(eval(&prog, env));
+        let mut singleton_iterator = Some(element).into_iter();
+        try!(apply(&func, &mut singleton_iterator, env));
         count += 1;
     }
 
@@ -109,3 +110,11 @@ pub static FILTER: &'static str =
                 (if (fn element)
                     (push element)
                     false))))))";
+
+pub static CONCAT: &'static str =
+"(lambda lists
+    (build-list
+        (lambda (push)
+            (for-each lists (lambda (list)
+                (for-each list (lambda (element)
+                    (push element))))))))";
