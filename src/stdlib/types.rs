@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use ::{Value, AresResult, AresError, rc_to_usize};
+use ::{Value, AresResult, AresError, rc_to_usize, Function};
 use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
 
 macro_rules! gen_is_type {
@@ -24,14 +24,37 @@ gen_is_type!(is_bool, Bool);
 gen_is_type!(is_string, String);
 gen_is_type!(is_list, List);
 gen_is_type!(is_ident, Ident);
-gen_is_type!(is_lambda, Lambda);
-gen_is_type!(is_foreign_fn, ForeignFn);
+
+pub fn is_foreign_fn(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+    for item in values {
+        match item {
+            Value::LispFunction(f) => match f {
+                Function::ForeignFn(_) => {},
+                _ => return Ok(false.into())
+            },
+            _ => return Ok(false.into())
+        }
+    }
+    Ok(true.into())
+}
+
+pub fn is_lambda(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+    for item in values {
+        match item {
+            Value::LispFunction(f) => match f {
+                Function::Lambda(_) => {},
+                _ => return Ok(false.into())
+            },
+            _ => return Ok(false.into())
+        }
+    }
+    Ok(true.into())
+}
 
 pub fn is_executable(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
     for item in values {
         match item {
-            Value::Lambda(_) => {},
-            Value::ForeignFn(_) => {},
+            Value::LispFunction(_) => {},
             _ => return Ok(false.into())
         }
     }
@@ -111,8 +134,10 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Float(f) => format!("{}", f),
         &Value::String(ref s) => (&**s).clone(),
         &Value::Bool(b) => format!("{}", b),
-        &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
-        &Value::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        &Value::LispFunction(ref ff) => match ff {
+            &Function::ForeignFn(ref ff) => format!("<#{}>", ff.name),
+            &Function::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        },
         &Value::Ident(ref i) => format!("'{}", i),
 
         &ref l@Value::List(_) => {

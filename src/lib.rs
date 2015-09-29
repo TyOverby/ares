@@ -7,7 +7,7 @@ mod error;
 pub mod util;
 
 pub use tokenizer::parse;
-pub use eval::{Procedure, eval, ForeignFunction, Env, Environment, ParamBinding};
+pub use eval::{Procedure, eval, ForeignFunction, FfType,  Env, Environment, ParamBinding};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {
@@ -24,6 +24,26 @@ macro_rules! gen_from {
 }
 
 #[derive(Debug, Clone)]
+pub enum Function {
+    ForeignFn(ForeignFunction),
+    Lambda(Procedure)
+}
+
+impl Function {
+    #[inline]
+    pub fn evaluate_arguments(&self) -> bool {
+        match self {
+            &Function::Lambda(_) => true,
+            &Function::ForeignFn(ref ff) =>
+                match ff.function {
+                    FfType::FreeFn(_) => true,
+                    _ => false
+                }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Value {
     List(Rc<Vec<Value>>),
     String(Rc<String>),
@@ -32,8 +52,7 @@ pub enum Value {
     Bool(bool),
 
     Ident(Rc<String>),
-    ForeignFn(ForeignFunction),
-    Lambda(Procedure)
+    LispFunction(Function),
 }
 
 impl Value {
@@ -45,6 +64,10 @@ impl Value {
     }
     pub fn new_list(v: Vec<Value>) -> Value {
         Value::List(Rc::new(v))
+    }
+
+    pub fn iter(&self) -> ValueIterator {
+        ValueIterator { value: &self, yielded: false }
     }
 }
 
@@ -83,7 +106,25 @@ where S: Into<String>,
       F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
 {
     fn from((name, f): (S, F)) -> Value {
-        Value::ForeignFn(ForeignFunction::new_free_function(name.into(), Rc::new(f)))
+        Value::LispFunction(Function::ForeignFn(ForeignFunction::new_free_function(name.into(), Rc::new(f))))
+    }
+}
+
+
+pub struct ValueIterator<'a> {
+    value: &'a Value,
+    yielded: bool
+}
+
+impl<'a> Iterator for ValueIterator<'a> {
+    type Item = &'a Value;
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.yielded {
+            self.yielded = true;
+            Some(self.value)
+        } else {
+            None
+        }
     }
 }
 
@@ -100,6 +141,16 @@ impl PartialEq for Value {
             (&Bool(b1), &Bool(b2)) => b1 == b2,
             (&Ident(ref id1), &Ident(ref id2)) =>
                 rc_to_usize(id1) == rc_to_usize(id2) || id1 == id2,
+            (&LispFunction(ref ff1), &LispFunction(ref ff2)) => ff1 == ff2,
+            _  => false
+        }
+    }
+}
+
+impl PartialEq for Function {
+    fn eq(&self, other: &Function) -> bool {
+        use ::Function::*;
+        match (self, other) {
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
             _ => false
@@ -108,6 +159,7 @@ impl PartialEq for Value {
 }
 
 impl Eq for Value {}
+impl Eq for Function {}
 
 impl std::hash::Hash for Value {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
@@ -119,8 +171,16 @@ impl std::hash::Hash for Value {
             &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
             &Value::Bool(b) => state.write(&[if b {1} else {0}]),
             &Value::Ident(ref rc) => rc.hash(state),
-            &Value::ForeignFn(ref ff) => ff.hash(state),
-            &Value::Lambda(ref p) => p.hash(state),
+            &Value::LispFunction(ref ff) => ff.hash(state),
+        }
+    }
+}
+
+impl std::hash::Hash for Function {
+    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+        match self {
+            &Function::ForeignFn(ref ff) => ff.hash(state),
+            &Function::Lambda(ref p) => p.hash(state),
         }
     }
 }
