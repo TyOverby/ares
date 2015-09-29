@@ -74,7 +74,7 @@ impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
         self.eval(&built)
     }
 
-    pub fn call_global<S: AsRef<str>>(&mut self, global_fn: S, args: Vec<Value>) -> AresResult<Value> {
+    pub fn call_named<S: AsRef<str>>(&mut self, global_fn: S, args: Vec<Value>) -> AresResult<Value> {
         let global_fn = match self.env().borrow().get(global_fn.as_ref()) {
             Some(f) => f,
             None => return Err(AresError::UndefinedName(global_fn.as_ref().into()))

@@ -63,4 +63,3 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
         }
     }
 }
-
