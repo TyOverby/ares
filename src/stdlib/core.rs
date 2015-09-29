@@ -2,25 +2,16 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
-use super::util::{unwrap_or_arity_err, no_more_or_arity_err};
+use super::util::expect_arity;
 
 pub fn equals(args: &[Value]) -> AresResult<Value> {
-    let mut args = args.iter();
-    let first = try!(unwrap_or_arity_err(args.next(), 0, "at least 2"));
-    let mut seen_2 = false;
+    try!(expect_arity(args, |l| l >= 2, "at least 2"));
+    let first = &args[0];
 
-    for next in args {
-        seen_2 = true;
-        if next != first {
+    for next in args.iter().skip(1) {
+        if *next != *first {
             return Ok(Value::Bool(false))
         }
-    }
-
-    if !seen_2 {
-        return Err(AresError::UnexpectedArity {
-            found: 1,
-            expected: "at least 2".into()
-        });
     }
 
     Ok(Value::Bool(true))
@@ -29,8 +20,8 @@ pub fn equals(args: &[Value]) -> AresResult<Value> {
 pub fn lambda(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let param_names = match try!(unwrap_or_arity_err(args.next(), 0, "2 or more")) {
+    try!(expect_arity(args, |l| l >= 2, "at least 2"));
+    let param_names = match &args[0] {
         &Value::List(ref v) => {
             let r: AresResult<Vec<String>> = v.iter().map(|n| {
                 match n {
@@ -51,11 +42,7 @@ pub fn lambda(args: &[Value],
         }
     };
 
-    let bodies:Vec<_> = args.cloned().collect();
-
-    if bodies.len() == 0 {
-        return Err(AresError::NoLambdaBody);
-    }
+    let bodies:Vec<_> = args.iter().skip(1).cloned().collect();
 
     Ok(Value::Lambda(
             Procedure::new(
@@ -68,8 +55,8 @@ pub fn lambda(args: &[Value],
 pub fn define(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let name: String = match try!(unwrap_or_arity_err(args.next(), 0, "exactly 2")) {
+    try!(expect_arity(args, |l| l == 2, "exactly 2"));
+    let name: String = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
         &ref other => return Err(AresError::UnexpectedType {
             value: other.clone(),
@@ -81,11 +68,9 @@ pub fn define(args: &[Value],
         return Err(AresError::AlreadyDefined(name.into()))
     }
 
-    let value = try!(unwrap_or_arity_err(args.next(), 1, "exactly 2"));
-
-    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
-
+    let value = &args[1];
     let result = try!(eval(value, env));
+
     env.borrow_mut().insert_here(name, result.clone());
     Ok(result)
 }
@@ -93,8 +78,8 @@ pub fn define(args: &[Value],
 pub fn set(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let name = match try!(unwrap_or_arity_err(args.next(), 0, "exactly 2")) {
+    try!(expect_arity(args, |l| l == 2, "exactly 2"));
+    let name = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
         &ref v => return Err(AresError::UnexpectedType {
             value: v.clone(),
@@ -102,14 +87,11 @@ pub fn set(args: &[Value],
         }),
     };
 
-    let value = try!(unwrap_or_arity_err(args.next(), 1, "exactly 2"));
-
-    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
+    let value = &args[1];
 
     if !env.borrow().is_defined(&name) {
         return Err(AresError::UndefinedName(name.into()))
     }
-
 
     let result = try!(eval(value, env));
     env.borrow_mut().with_value_mut(&name, |v| *v = result.clone());
@@ -119,21 +101,15 @@ pub fn set(args: &[Value],
 pub fn quote(args: &[Value],
               _env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let first = try!(unwrap_or_arity_err(args.next().cloned(), 0, "exactly 1"));
-    try!(no_more_or_arity_err(&mut args, 1, "exactly 1"));
-    Ok(first)
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    Ok(args[0].clone())
 }
 
 pub fn cond(args: &[Value],
             env: &Rc<RefCell<Environment>>,
             eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let (cond, true_branch, false_branch) =
-        (try!(unwrap_or_arity_err(args.next(), 0, "exactly 3")),
-         try!(unwrap_or_arity_err(args.next(), 1, "exactly 3")),
-         try!(unwrap_or_arity_err(args.next(), 2, "exactly 3")));
-
+    try!(expect_arity(args, |l| l == 3, "exactly 3"));
+    let (cond, true_branch, false_branch) = (&args[0], &args[1], &args[2]);
     match try!(eval(cond, env)) {
         Value::Bool(true) => eval(true_branch, env),
         Value::Bool(false) => eval(false_branch, env),

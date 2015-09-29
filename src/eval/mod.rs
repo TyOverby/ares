@@ -60,7 +60,8 @@ pub fn apply<'a>(func: &Value, args: &[Value], env: &'a Env) -> AresResult<Value
             for body in &*procedure.bodies {
                 last = Some(try!(eval(body, &new_env)));
             }
-            last.ok_or(AresError::NoLambdaBody)
+            // it's impossible to make a lambda without a body
+            Ok(last.unwrap())
         }
         Value::ForeignFn(ff) => {
             (ff.function)(args, env, &|a, b| eval(a, b))

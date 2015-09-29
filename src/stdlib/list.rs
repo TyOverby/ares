@@ -2,12 +2,12 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use ::{Value, Env, AresResult, AresError, free_fn, apply};
-use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
+use super::util::expect_arity;
 
 pub fn build_list(args: &[Value],
                   env: &Env,
                   eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
     let writer = vec.clone();
 
@@ -37,24 +37,8 @@ pub fn build_list(args: &[Value],
 
     let boxed_fn: Value = free_fn("add", func);
 
-    let evaluator = match args.next() {
-        Some(lambda) => lambda.clone(),
-        None => {
-            return Err(AresError::UnexpectedArity {
-                found: 0,
-                expected: "exactly 1".into()
-            });
-        }
-    };
-
-    let rest = args.count();
-    if rest != 0 {
-        return Err(AresError::UnexpectedArity {
-            found: rest as u16 + 1,
-            expected: "exactly 1".to_string()
-        });
-    }
-
+    let evaluator = args[0].clone();
+    // TODO: should this be apply?
     try!(eval(&Value::new_list(vec![evaluator, boxed_fn]), env));
 
     let mut v = vec.borrow_mut();
@@ -64,9 +48,9 @@ pub fn build_list(args: &[Value],
 pub fn foreach(args: &[Value],
                env: &Env,
                eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
-    let mut args = args.iter();
-    let should_be_list = try!(unwrap_or_arity_err(args.next(), 0, "exactly 2"));
-    let list: Vec<_> = match try!(eval(should_be_list, env)) {
+    try!(expect_arity(args, |l| l == 2, "exactly 2"));
+    let should_be_list = args[0].clone();
+    let list: Vec<_> = match try!(eval(&should_be_list, env)) {
         Value::List(ref l) => (&**l).clone(),
         other => return Err(AresError::UnexpectedType{
             value: other,
@@ -74,8 +58,7 @@ pub fn foreach(args: &[Value],
         }),
     };
 
-    let func = try!(unwrap_or_arity_err(args.next().cloned(), 1, "exactly 2"));
-    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
+    let func = args[1].clone();
     let func = try!(eval(&func, env));
 
     let mut count = 0;
