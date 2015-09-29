@@ -1,4 +1,4 @@
-use ::Env;
+use ::{Env, free_fn, ast_fn};
 
 pub mod arithmetic;
 pub mod math;
@@ -8,33 +8,19 @@ pub mod list;
 pub mod logical;
 
 pub mod util {
-    use ::AresError;
-
-    pub fn unwrap_or_arity_err<T, S>(value: Option<T>, seen_already: u16, expected: S) -> Result<T, AresError>
-    where S: Into<String> {
-        match value {
-            Some(v) => Ok(v),
-            None => Err(AresError::UnexpectedArity {
-                found: seen_already,
-                expected: expected.into()
-            })
-        }
-    }
-
-    pub fn no_more_or_arity_err<S, T, I: ?Sized>(iter: &mut I, seen_already: u16, expected: S) -> Result<(), AresError>
-    where I: Iterator<Item=T>, S: Into<String>
-    {
-        let count = iter.count();
-        if count > 0 {
-            Err(AresError::UnexpectedArity {
-                found: seen_already + count as u16,
-                expected: expected.into()
-            })
-        } else {
+    use ::{AresError, AresResult};
+    pub fn expect_arity<F, S: Into<String>, T>(slice: &[T], expected: F, expect_str: S) -> AresResult<()>
+    where S: Into<String>, F: FnOnce(usize) -> bool {
+        let len = slice.len();
+        if expected(len) {
             Ok(())
+        } else {
+            Err(AresError::UnexpectedArity{
+                found: len as u16,
+                expected: expect_str.into()
+            })
         }
     }
-
 }
 
 fn eval_into<S: AsRef<str>>(src: &S, env: &Env) {
@@ -56,115 +42,116 @@ pub fn load_all(env: &Env) {
 
 pub fn load_logical(env: &Env) {
     let mut env = env.borrow_mut();
-    env.set_uneval_function("and", self::logical::and);
-    env.set_uneval_function("or", self::logical::or);
-    env.set_uneval_function("xor", self::logical::xor);
+    env.insert_here("and", ast_fn("and", self::logical::and));
+    env.insert_here("or", ast_fn("or", self::logical::or));
+    env.insert_here("xor", ast_fn("xor", self::logical::xor));
 }
 
 pub fn load_core(env: &Env) {
     let mut env = env.borrow_mut();
-    env.set_uneval_function("quote", self::core::quote);
-    env.set_uneval_function("if", self::core::cond);
-    env.set_uneval_function("set", self::core::set);
-    env.set_uneval_function("define", self::core::define);
-    env.set_uneval_function("lambda", self::core::lambda);
+    env.insert_here("quote", ast_fn("quote", self::core::quote));
+    env.insert_here("if", ast_fn("if", self::core::cond));
+    env.insert_here("set", ast_fn("set", self::core::set));
+    env.insert_here("define", ast_fn("define", self::core::define));
+    env.insert_here("lambda", ast_fn("lambda", self::core::lambda));
 }
 
 pub fn load_list(env: &Env) {
     {
         let mut env = env.borrow_mut();
-        env.set_uneval_function("build-list", self::list::build_list);
-        env.set_uneval_function("for-each", self::list::foreach);
+        env.insert_here("build-list", ast_fn("build-list", self::list::build_list));
+        env.insert_here("for-each", ast_fn("for-each", self::list::foreach));
     }
     eval_into(&format!("(define list {})", self::list::LIST), env);
     eval_into(&format!("(define map {})", self::list::MAP), env);
     eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT), env);
     eval_into(&format!("(define filter {})", self::list::FILTER), env);
+    eval_into(&format!("(define concat {})", self::list::CONCAT), env);
 
 }
 
 pub fn load_arithmetic(env: &Env) {
     let mut env = env.borrow_mut();
-    env.set_function("=", self::core::equals);
-    env.set_function("+", self::arithmetic::add_ints);
-    env.set_function("+.", self::arithmetic::add_floats);
+    env.insert_here("=", free_fn("=", self::core::equals));
+    env.insert_here("+", free_fn("+", self::arithmetic::add_ints));
+    env.insert_here("+.", free_fn("+.", self::arithmetic::add_floats));
 
-    env.set_function("-", self::arithmetic::sub_ints);
-    env.set_function("-.", self::arithmetic::sub_floats);
+    env.insert_here("-", free_fn("-", self::arithmetic::sub_ints));
+    env.insert_here("-.", free_fn("-.", self::arithmetic::sub_floats));
 
-    env.set_function("*", self::arithmetic::mul_ints);
-    env.set_function("*.", self::arithmetic::mul_floats);
+    env.insert_here("*", free_fn("*", self::arithmetic::mul_ints));
+    env.insert_here("*.", free_fn("*.", self::arithmetic::mul_floats));
 
-    env.set_function("/", self::arithmetic::div_ints);
-    env.set_function("/.", self::arithmetic::div_floats);
+    env.insert_here("/", free_fn("/", self::arithmetic::div_ints));
+    env.insert_here("/.", free_fn("/.", self::arithmetic::div_floats));
 }
 
 pub fn load_math(env: &Env) {
     let mut env = env.borrow_mut();
-    env.set_function("nan?", self::math::is_nan);
-    env.set_function("infinite?", self::math::is_infinite);
-    env.set_function("finite?", self::math::is_finite);
-    env.set_function("normal?", self::math::is_normal);
+    env.insert_here("nan?", free_fn("nan?", self::math::is_nan));
+    env.insert_here("infinite?", free_fn("infinite?", self::math::is_infinite));
+    env.insert_here("finite?", free_fn("finite?", self::math::is_finite));
+    env.insert_here("normal?", free_fn("normal?", self::math::is_normal));
 
-    env.set_function("floor", self::math::floor);
-    env.set_function("ceil", self::math::ceil);
-    env.set_function("round", self::math::round);
-    env.set_function("trunc", self::math::trunc);
+    env.insert_here("floor", free_fn("floor", self::math::floor));
+    env.insert_here("ceil", free_fn("ceil", self::math::ceil));
+    env.insert_here("round", free_fn("round", self::math::round));
+    env.insert_here("trunc", free_fn("trunc", self::math::trunc));
 
-    env.set_function("fract", self::math::fract);
-    env.set_function("sign_positive?", self::math::is_sign_positive);
-    env.set_function("sign_negative?", self::math::is_sign_negative);
-    env.set_function("recip", self::math::recip);
-    env.set_function("sqrt", self::math::sqrt);
-    env.set_function("exp", self::math::exp);
-    env.set_function("exp2", self::math::exp2);
-    env.set_function("ln", self::math::ln);
-    env.set_function("log2", self::math::log2);
-    env.set_function("log10", self::math::log10);
-    env.set_function("->degrees", self::math::to_degrees);
-    env.set_function("->radians", self::math::to_radians);
-    env.set_function("cbrt", self::math::cbrt);
-    env.set_function("sin", self::math::sin);
-    env.set_function("cos", self::math::cos);
-    env.set_function("tan", self::math::tan);
-    env.set_function("asin", self::math::asin);
-    env.set_function("acos", self::math::acos);
-    env.set_function("atan", self::math::atan);
-    env.set_function("exp_m1", self::math::exp_m1);
-    env.set_function("ln_1p", self::math::ln_1p);
-    env.set_function("sinh", self::math::sinh);
-    env.set_function("cosh", self::math::cosh);
-    env.set_function("tanh", self::math::tanh);
-    env.set_function("asinh", self::math::asinh);
-    env.set_function("acosh", self::math::acosh);
-    env.set_function("atanh", self::math::atanh);
+    env.insert_here("fract", free_fn("fract", self::math::fract));
+    env.insert_here("sign_positive?", free_fn("sign_positive?", self::math::is_sign_positive));
+    env.insert_here("sign_negative?", free_fn("sign_negative?", self::math::is_sign_negative));
+    env.insert_here("recip", free_fn("recip", self::math::recip));
+    env.insert_here("sqrt", free_fn("sqrt", self::math::sqrt));
+    env.insert_here("exp", free_fn("exp", self::math::exp));
+    env.insert_here("exp2", free_fn("exp2", self::math::exp2));
+    env.insert_here("ln", free_fn("ln", self::math::ln));
+    env.insert_here("log2", free_fn("log2", self::math::log2));
+    env.insert_here("log10", free_fn("log10", self::math::log10));
+    env.insert_here("->degrees", free_fn("->degrees", self::math::to_degrees));
+    env.insert_here("->radians", free_fn("->radians", self::math::to_radians));
+    env.insert_here("cbrt", free_fn("cbrt", self::math::cbrt));
+    env.insert_here("sin", free_fn("sin", self::math::sin));
+    env.insert_here("cos", free_fn("cos", self::math::cos));
+    env.insert_here("tan", free_fn("tan", self::math::tan));
+    env.insert_here("asin", free_fn("asin", self::math::asin));
+    env.insert_here("acos", free_fn("acos", self::math::acos));
+    env.insert_here("atan", free_fn("atan", self::math::atan));
+    env.insert_here("exp_m1", free_fn("exp_m1", self::math::exp_m1));
+    env.insert_here("ln_1p", free_fn("ln_1p", self::math::ln_1p));
+    env.insert_here("sinh", free_fn("sinh", self::math::sinh));
+    env.insert_here("cosh", free_fn("cosh", self::math::cosh));
+    env.insert_here("tanh", free_fn("tanh", self::math::tanh));
+    env.insert_here("asinh", free_fn("asinh", self::math::asinh));
+    env.insert_here("acosh", free_fn("acosh", self::math::acosh));
+    env.insert_here("atanh", free_fn("atanh", self::math::atanh));
 
-    env.set_function("count_ones", self::math::count_ones);
-    env.set_function("count_zeros", self::math::count_zeros);
-    env.set_function("leading_zeros", self::math::leading_zeros);
-    env.set_function("trailing_zeros", self::math::trailing_zeros);
-    env.set_function("swap_bytes", self::math::swap_bytes);
-    env.set_function("->big-endian", self::math::to_be);
-    env.set_function("->little-endian", self::math::to_le);
-    env.set_function("abs", self::math::abs);
-    env.set_function("signum", self::math::signum);
-    env.set_function("positive?", self::math::is_positive);
-    env.set_function("negative?", self::math::is_negative);
+    env.insert_here("count_ones", free_fn("count_ones", self::math::count_ones));
+    env.insert_here("count_zeros", free_fn("count_zeros", self::math::count_zeros));
+    env.insert_here("leading_zeros", free_fn("leading_zeros", self::math::leading_zeros));
+    env.insert_here("trailing_zeros", free_fn("trailing_zeros", self::math::trailing_zeros));
+    env.insert_here("swap_bytes", free_fn("swap_bytes", self::math::swap_bytes));
+    env.insert_here("->big-endian", free_fn("->big-endian", self::math::to_be));
+    env.insert_here("->little-endian", free_fn("->little-endian", self::math::to_le));
+    env.insert_here("abs", free_fn("abs", self::math::abs));
+    env.insert_here("signum", free_fn("signum", self::math::signum));
+    env.insert_here("positive?", free_fn("positive?", self::math::is_positive));
+    env.insert_here("negative?", free_fn("negative?", self::math::is_negative));
 }
 
 pub fn load_types(env: &Env) {
     let mut env = env.borrow_mut();
-    env.set_function("->int", self::types::to_int);
-    env.set_function("->float", self::types::to_float);
-    env.set_function("->string", self::types::to_string);
-    env.set_function("->bool", self::types::to_bool);
+    env.insert_here("->int", free_fn("->int", self::types::to_int));
+    env.insert_here("->float", free_fn("->float", self::types::to_float));
+    env.insert_here("->string", free_fn("->string", self::types::to_string));
+    env.insert_here("->bool", free_fn("->bool", self::types::to_bool));
 
-    env.set_function("int?", self::types::is_int);
-    env.set_function("float?", self::types::is_float);
-    env.set_function("bool?", self::types::is_bool);
-    env.set_function("string?", self::types::is_string);
-    env.set_function("list?", self::types::is_list);
-    env.set_function("lambda?", self::types::is_lambda);
-    env.set_function("foreign-fn?", self::types::is_foreign_fn);
-    env.set_function("executable", self::types::is_executable);
+    env.insert_here("int?", free_fn("int?", self::types::is_int));
+    env.insert_here("float?", free_fn("float?", self::types::is_float));
+    env.insert_here("bool?", free_fn("bool?", self::types::is_bool));
+    env.insert_here("string?", free_fn("string?", self::types::is_string));
+    env.insert_here("list?", free_fn("list?", self::types::is_list));
+    env.insert_here("lambda?", free_fn("lambda?", self::types::is_lambda));
+    env.insert_here("foreign-fn?", free_fn("foreign-fn?", self::types::is_foreign_fn));
+    env.insert_here("executable", free_fn("executable", self::types::is_executable));
 }

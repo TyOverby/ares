@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use super::{Env, eval};
+use super::{Env, eval, apply};
 use ::{Value, AresResult, AresError, parse, stdlib, Environment};
 
 pub struct Context<T> {
@@ -46,8 +46,8 @@ impl <T> Context<T> {
 }
 
 impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
-    pub fn eval(&mut self, program: &Value) -> AresResult<Value> {
-        eval(program, self.env())
+    pub fn eval(&mut self, value: &Value) -> AresResult<Value> {
+        eval(value, self.env())
     }
 
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
@@ -62,25 +62,16 @@ impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
         }
     }
 
-    pub fn call(&mut self, func: Value, mut args: Vec<Value>) -> AresResult<Value> {
-        for arg in args.iter_mut() {
-            if let a@&mut Value::List(_) = arg {
-                // TODO: can you get rid of this clone?
-                *a = Value::new_list(vec![Value::new_ident("quote"), a.clone()]);
-            }
-        }
-
-        let built = Value::new_list(vec![func, Value::new_list(args)]);
-        self.eval(&built)
+    pub fn call(&mut self, func: &Value, mut args: &[Value]) -> AresResult<Value> {
+        apply(func, &args[..], self.env())
     }
 
-    pub fn call_named<S: AsRef<str>>(&mut self, global_fn: S, args: Vec<Value>) -> AresResult<Value> {
-        let global_fn = match self.env().borrow().get(global_fn.as_ref()) {
-            Some(f) => f,
-            None => return Err(AresError::UndefinedName(global_fn.as_ref().into()))
-        };
-
-        self.call(global_fn, args)
+    pub fn call_named<S: AsRef<str>>(&mut self, global_fn: S, args: &[Value]) -> AresResult<Value> {
+        let func = self.env.borrow().get(global_fn.as_ref());
+        match func {
+            Some(v) => self.call(&v, args),
+            None => Err(AresError::UndefinedName(global_fn.as_ref().into()))
+        }
     }
 }
 

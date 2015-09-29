@@ -1,6 +1,6 @@
 use ::{Value, AresResult, Env, AresError};
 
-pub fn and(args: &mut Iterator<Item=&Value>,
+pub fn and(args: &[Value],
            env: &Env,
            eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     for value in args {
@@ -16,7 +16,7 @@ pub fn and(args: &mut Iterator<Item=&Value>,
     Ok(Value::Bool(true))
 }
 
-pub fn or(args: &mut Iterator<Item=&Value>,
+pub fn or(args: &[Value],
            env: &Env,
            eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     for value in args {
@@ -32,7 +32,7 @@ pub fn or(args: &mut Iterator<Item=&Value>,
     Ok(Value::Bool(false))
 }
 
-pub fn xor(args: &mut Iterator<Item=&Value>,
+pub fn xor(args: &[Value],
            env: &Env,
            eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     let mut found_true = false;

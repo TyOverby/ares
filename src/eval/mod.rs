@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
-pub use self::foreign_function::{ForeignFunction, FfType};
+pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn};
 pub use self::procedure::{Procedure, ParamBinding};
 pub use self::context::Context;
 
@@ -19,7 +19,6 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
         &ref v@Value::Int(_) => Ok(v.clone()),
         &ref v@Value::Float(_) => Ok(v.clone()),
         &ref v@Value::Bool(_) => Ok(v.clone()),
-
         &ref v@Value::ForeignFn(_) => Ok(v.clone()),
         &ref v@Value::Lambda(_) => Ok(v.clone()),
 
@@ -30,36 +29,44 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
             }
         }
 
-        &Value::List(ref l) => {
-            let mut items = l.iter();
-            let head = match items.next() {
+        &Value::List(ref items) => {
+            let head = match items.first() {
                 Some(h) => h,
                 None => return Err(AresError::ExecuteEmptyList)
             };
+            let items = &items[1..];
 
             match try!(eval(head, env)) {
-                Value::Lambda(procedure) => {
-                    let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
+                f@Value::Lambda(_) => {
+                    let evald: AresResult<Vec<Value>> = items.iter().map(|v| eval(v, env)).collect();
                     let evald = try!(evald);
-                    let new_env = procedure.gen_env(evald.into_iter());
-                    let mut last = None;
-                    for body in &*procedure.bodies {
-                        last = Some(try!(eval(body, &new_env)));
-                    }
-                    last.ok_or(AresError::NoLambdaBody)
+                    apply(&f, &evald[..], env)
                 }
-                Value::ForeignFn(ff) => {
-                    match ff.function {
-                        FfType::FreeFn(ff) => {
-                            let evald: AresResult<Vec<Value>> = items.map(|v| eval(v, env)).collect();
-                            let evald = try!(evald);
-                            (ff)(&mut evald.into_iter())
-                        }
-                        FfType::UnEvalFn(uef) => (uef)(&mut items, env, &|v, e| eval(v, e))
-                    }
+
+                f@Value::ForeignFn(_) => {
+                        apply(&f, items, env)
                 }
                 x => Err(AresError::UnexecutableValue(x))
             }
         }
+    }
+}
+
+pub fn apply<'a>(func: &Value, args: &[Value], env: &'a Env) -> AresResult<Value>
+{
+    match func.clone() {
+        Value::Lambda(procedure) => {
+            let new_env = procedure.gen_env(args.iter().cloned());
+            let mut last = None;
+            for body in &*procedure.bodies {
+                last = Some(try!(eval(body, &new_env)));
+            }
+            // it's impossible to make a lambda without a body
+            Ok(last.unwrap())
+        }
+        Value::ForeignFn(ff) => {
+            (ff.function)(args, env, &|a, b| eval(a, b))
+        }
+        other => Err(AresError::UnexecutableValue(other.clone()))
     }
 }

@@ -2,13 +2,13 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
-use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
+use super::util::expect_arity;
 
 macro_rules! gen_is_type {
     ($name: ident, $p: ident) => {
-        pub fn $name(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+        pub fn $name(values: &[Value]) -> AresResult<Value> {
             for item in values {
-                if let Value::$p(_) = item {
+                if let &Value::$p(_) = item {
                 } else {
                     return Ok(false.into())
                 }
@@ -27,11 +27,11 @@ gen_is_type!(is_ident, Ident);
 gen_is_type!(is_lambda, Lambda);
 gen_is_type!(is_foreign_fn, ForeignFn);
 
-pub fn is_executable(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn is_executable(values: &[Value]) -> AresResult<Value> {
     for item in values {
         match item {
-            Value::Lambda(_) => {},
-            Value::ForeignFn(_) => {},
+            &Value::Lambda(_) => {},
+            &Value::ForeignFn(_) => {},
             _ => return Ok(false.into())
         }
     }
@@ -40,67 +40,72 @@ pub fn is_executable(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
 }
 
 
-pub fn to_int(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
-     let res = match try!(unwrap_or_arity_err(values.next(), 0, "exactly 1")) {
-         Value::Int(i) => Ok(Value::Int(i)),
-         Value::Float(f) => Ok(Value::Int(f as i64)),
-         Value::Bool(b) => Ok(Value::Int(if b {1} else {0})),
-         Value::String(s) => Ok(Value::Int(s.parse().unwrap())),
-         other => Err(AresError::IllegalConversion {
-             value: other,
-             into: "Int".to_string()
-         })
-     };
-     try!(no_more_or_arity_err(values, 1, "exactly 1"));
-     res
+pub fn to_int(values: &[Value]) -> AresResult<Value> {
+    try!(expect_arity(values, |l| l == 1, "exactly 1"));
+
+    let res = match values.first().unwrap() {
+        &Value::Int(i) => Ok(Value::Int(i)),
+        &Value::Float(f) => Ok(Value::Int(f as i64)),
+        &Value::Bool(b) => Ok(Value::Int(if b {1} else {0})),
+        &Value::String(ref s) => Ok(Value::Int(s.parse().unwrap())),
+        other => Err(AresError::IllegalConversion {
+            value: other.clone(),
+            into: "Int".to_string()
+        })
+    };
+
+    res
 }
 
-pub fn to_float(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
-     let res = match try!(unwrap_or_arity_err(values.next(), 0, "exactly 1")){
-         Value::Int(i) => Ok(Value::Float(i as f64)),
-         Value::Float(f) => Ok(Value::Float(f)),
-         Value::String(s) => Ok(Value::Float(s.parse().unwrap())),
-         other => Err(AresError::IllegalConversion {
-             value: other,
-             into: "Float".to_string()
-         })
-     };
-     try!(no_more_or_arity_err(values, 1, "exactly 1"));
-     res
+pub fn to_float(values: &[Value]) -> AresResult<Value> {
+    try!(expect_arity(values, |l| l == 1, "exactly 1"));
+
+    let res = match values.first().unwrap() {
+        &Value::Int(i) => Ok(Value::Float(i as f64)),
+        &Value::Float(f) => Ok(Value::Float(f)),
+        &Value::String(ref s) => Ok(Value::Float(s.parse().unwrap())),
+        other => Err(AresError::IllegalConversion {
+            value: other.clone(),
+            into: "Float".to_string()
+        })
+    };
+    res
 }
 
-pub fn to_bool(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
-     let res = match try!(unwrap_or_arity_err(values.next(), 0, "exactly 1")) {
-         Value::Int(0) => Ok(Value::Bool(false)),
-         Value::Int(_) => Ok(Value::Bool(true)),
-         Value::Float(0.0) => Ok(Value::Bool(false)),
-         // TODO: Float(nan) => Ok(false)?
-         Value::Float(_) => Ok(Value::Bool(true)),
-         Value::Bool(b) => Ok(Value::Bool(b)),
-         Value::String(s) => {
-             if &**s == "true" {
-                 Ok(Value::Bool(true))
-             } else if &**s == "false" {
-                 Ok(Value::Bool(false))
-             } else {
-                 Err(AresError::IllegalConversion{
-                     value: Value::String(s),
-                     into: "Bool".to_string()
-                 })
-             }
-         }
-         other => Err(AresError::IllegalConversion {
-             value: other,
-             into: "Bool".to_string()
-         })
-     };
-     try!(no_more_or_arity_err(values, 1, "exactly 1"));
-     res
+pub fn to_bool(values: &[Value]) -> AresResult<Value> {
+    try!(expect_arity(values, |l| l == 1, "exactly 1"));
+
+    let res = match values.first().unwrap() {
+        &Value::Int(0) => Ok(Value::Bool(false)),
+        &Value::Int(_) => Ok(Value::Bool(true)),
+        &Value::Float(0.0) => Ok(Value::Bool(false)),
+        // TODO: Float(nan) => Ok(false)?
+        &Value::Float(_) => Ok(Value::Bool(true)),
+        &Value::Bool(b) => Ok(Value::Bool(b)),
+        &Value::String(ref s) => {
+            if &**s == "true" {
+                Ok(Value::Bool(true))
+            } else if &**s == "false" {
+                Ok(Value::Bool(false))
+            } else {
+                Err(AresError::IllegalConversion{
+                    value: Value::String(s.clone()),
+                    into: "Bool".to_string()
+                })
+            }
+        }
+        other => Err(AresError::IllegalConversion {
+            value: other.clone(),
+            into: "Bool".to_string()
+        })
+    };
+
+    res
 }
 
-pub fn to_string(values: &mut Iterator<Item=Value>) -> AresResult<Value> {
-    let first = try!(unwrap_or_arity_err(values.next(), 0, "exactly 1"));
-    try!(no_more_or_arity_err(values, 1, "exactly 1"));
+pub fn to_string(values: &[Value]) -> AresResult<Value> {
+    try!(expect_arity(values, |l| l == 1, "exactly 1"));
+    let first = values.first().unwrap();
     let s = to_string_helper(&first);
     Ok(Value::String(Rc::new(s)))
 }

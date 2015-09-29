@@ -7,7 +7,18 @@ mod error;
 pub mod util;
 
 pub use tokenizer::parse;
-pub use eval::{Procedure, eval, ForeignFunction, Env, Environment, ParamBinding, Context};
+pub use eval::{
+    Procedure,
+    eval,
+    apply,
+    ForeignFunction,
+    Env,
+    Environment,
+    ParamBinding,
+    free_fn,
+    ast_fn,
+    Context
+};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {
@@ -75,15 +86,6 @@ impl <'a> From<&'a str> for Value {
         let s: String = x.into();
         let v: Value = s.into();
         v
-    }
-}
-
-impl <S, F> From<(S, F)> for Value
-where S: Into<String>,
-      F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
-{
-    fn from((name, f): (S, F)) -> Value {
-        Value::ForeignFn(ForeignFunction::new_free_function(name.into(), Rc::new(f)))
     }
 }
 

@@ -14,9 +14,7 @@ pub enum AresError {
     UnexecutableValue(Value),
     ExecuteEmptyList,
 
-    NoLambdaArgsList,
     UnexpectedArgsList(Value),
-    NoLambdaBody,
 
     IllegalConversion{value: Value, into: String},
     UndefinedName(String),

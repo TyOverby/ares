@@ -6,11 +6,11 @@ macro_rules! gen_fold {
         {
         let mut cur = $default;
         for a in $args {
-            if let $var(name) = a {
+            if let &$var(name) = a {
                 ($op)(&mut cur, name);
             } else {
                 return Err(AresError::UnexpectedType {
-                    value: a,
+                    value: a.clone(),
                     expected: stringify!($var).to_string()
                 });
             }
@@ -25,15 +25,15 @@ macro_rules! gen_fold {
     }
 }
 
-pub fn add_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn add_ints(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 0i64, Value::Int, |acc: &mut i64, v: i64| *acc += v)
 }
 
-pub fn add_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn add_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 0.0f64, Value::Float, |acc: &mut f64, v: f64| *acc += v)
 }
 
-pub fn sub_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn sub_ints(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, None, Value::Int, |acc: &mut Option<(bool, i64)>, v: i64| {
         if let &mut Some((ref mut first, ref mut acc)) = acc {
             if *first {
@@ -54,7 +54,7 @@ pub fn sub_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     })
 }
 
-pub fn sub_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn sub_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, None, Value::Float, |acc: &mut Option<(bool, f64)>, v: f64| {
         if let &mut Some((ref mut first, ref mut acc)) = acc {
             if *first {
@@ -75,15 +75,15 @@ pub fn sub_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     })
 }
 
-pub fn mul_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn mul_ints(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 1i64, Value::Int, |acc: &mut i64, v: i64| *acc *= v)
 }
 
-pub fn mul_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn mul_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 1.0f64, Value::Float, |acc: &mut f64, v: f64| *acc *= v)
 }
 
-pub fn div_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn div_ints(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, None, Value::Int, |acc: &mut Option<i64>, v: i64| {
         if let &mut Some(ref mut acc) = acc {
             *acc /= v
@@ -101,18 +101,20 @@ pub fn div_ints(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     })
 }
 
-pub fn div_floats(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn div_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 1.0f64, Value::Float, |acc: &mut f64, v: f64| *acc /= v)
 }
 
-pub fn concat(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+
+// TODO: move this to a new strings module
+pub fn concat(args: &[Value]) -> AresResult<Value> {
     let mut buffer = String::new();
     for v in args {
-        if let Value::String(s) = v {
-            buffer.push_str(&s)
+        if let &Value::String(ref s) = v {
+            buffer.push_str(&s[..])
         } else {
             return Err(AresError::UnexpectedType {
-                value: v,
+                value: v.clone(),
                 expected: "Value::String".into()
             })
         }

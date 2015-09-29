@@ -1,5 +1,5 @@
 use ::{Value, AresResult, AresError};
-use super::util::{unwrap_or_arity_err, no_more_or_arity_err};
+use super::util::expect_arity;
 
 macro_rules! gen_num_method {
     ($name: ident, $v: path) => {
@@ -9,15 +9,15 @@ macro_rules! gen_num_method {
         gen_num_method!($name, $inv, $outv, |a| a);
     };
     ($name: ident, $inv: path, $outv: path, $conv: expr) => {
-        pub fn $name(it: &mut Iterator<Item=Value>) -> AresResult<Value> {
-            let value = match try!(unwrap_or_arity_err(it.next(), 0, "exactly 1")) {
-                $inv(v) => $outv($conv(v.$name())),
+        pub fn $name(values: &[Value]) -> AresResult<Value> {
+            try!(expect_arity(values, |l| l == 1, "exactly 1"));
+            let value = match values.first().unwrap() {
+                &$inv(v) => $outv($conv(v.$name())),
                 other => return Err(AresError::UnexpectedType{
-                    value: other,
+                    value: other.clone(),
                     expected: stringify!($inv).into()
                 })
             };
-            try!(no_more_or_arity_err(it, 1, "exactly 1"));
             Ok(value)
         }
     }
