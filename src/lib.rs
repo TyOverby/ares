@@ -10,6 +10,7 @@ pub use tokenizer::parse;
 pub use eval::{
     Procedure,
     eval,
+    apply,
     ForeignFunction,
     Env,
     Environment,

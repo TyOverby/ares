@@ -80,6 +80,7 @@ pub fn load_list(env: &Env) {
     eval_into(&format!("(define map {})", self::list::MAP), env);
     eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT), env);
     eval_into(&format!("(define filter {})", self::list::FILTER), env);
+    eval_into(&format!("(define concat {})", self::list::CONCAT), env);
 
 }
 

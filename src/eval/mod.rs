@@ -17,7 +17,6 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
         &ref v@Value::Int(_) => Ok(v.clone()),
         &ref v@Value::Float(_) => Ok(v.clone()),
         &ref v@Value::Bool(_) => Ok(v.clone()),
-
         &ref v@Value::ForeignFn(_) => Ok(v.clone()),
         &ref v@Value::Lambda(_) => Ok(v.clone()),
 
@@ -36,18 +35,14 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
             let items = &items[1..];
 
             match try!(eval(head, env)) {
-                Value::Lambda(procedure) => {
+                f@Value::Lambda(_) => {
                     let evald: AresResult<Vec<Value>> = items.iter().map(|v| eval(v, env)).collect();
                     let evald = try!(evald);
-                    let new_env = procedure.gen_env(evald.into_iter());
-                    let mut last = None;
-                    for body in &*procedure.bodies {
-                        last = Some(try!(eval(body, &new_env)));
-                    }
-                    last.ok_or(AresError::NoLambdaBody)
+                    apply(&f, &evald[..], env)
                 }
-                Value::ForeignFn(ff) => {
-                    (ff.function)(items, env, &|v, e| eval(v, e))
+
+                f@Value::ForeignFn(_) => {
+                        apply(&f, items, env)
                 }
                 x => Err(AresError::UnexecutableValue(x))
             }
@@ -55,3 +50,21 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
     }
 }
 
+
+pub fn apply<'a>(func: &Value, args: &[Value], env: &'a Env) -> AresResult<Value>
+{
+    match func.clone() {
+        Value::Lambda(procedure) => {
+            let new_env = procedure.gen_env(args.iter().cloned());
+            let mut last = None;
+            for body in &*procedure.bodies {
+                last = Some(try!(eval(body, &new_env)));
+            }
+            last.ok_or(AresError::NoLambdaBody)
+        }
+        Value::ForeignFn(ff) => {
+            (ff.function)(args, env, &|a, b| eval(a, b))
+        }
+        other => Err(AresError::UnexecutableValue(other.clone()))
+    }
+}

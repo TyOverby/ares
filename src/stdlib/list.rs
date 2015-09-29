@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Env, AresResult, AresError, free_fn};
+use ::{Value, Env, AresResult, AresError, free_fn, apply};
 use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
 
 pub fn build_list(args: &[Value],
@@ -66,8 +66,8 @@ pub fn foreach(args: &[Value],
                eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
     let mut args = args.iter();
     let should_be_list = try!(unwrap_or_arity_err(args.next(), 0, "exactly 2"));
-    let list = match try!(eval(should_be_list, env)) {
-        Value::List(ref l) => l.clone(),
+    let list: Vec<_> = match try!(eval(should_be_list, env)) {
+        Value::List(ref l) => (&**l).clone(),
         other => return Err(AresError::UnexpectedType{
             value: other,
             expected: "List".into()
@@ -76,11 +76,12 @@ pub fn foreach(args: &[Value],
 
     let func = try!(unwrap_or_arity_err(args.next().cloned(), 1, "exactly 2"));
     try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
+    let func = try!(eval(&func, env));
 
     let mut count = 0;
-    for element in list.iter() {
-        let prog = Value::new_list(vec![func.clone(), element.clone()]);
-        try!(eval(&prog, env));
+    for element in list {
+        let singleton_slice: [Value; 1] = [element];
+        try!(apply(&func, &singleton_slice[..], env));
         count += 1;
     }
 
@@ -111,3 +112,11 @@ pub static FILTER: &'static str =
                 (if (fn element)
                     (push element)
                     false))))))";
+
+pub static CONCAT: &'static str =
+"(lambda lists
+    (build-list
+        (lambda (push)
+            (for-each lists (lambda (list)
+                (for-each list (lambda (element)
+                    (push element))))))))";
