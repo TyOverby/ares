@@ -6,11 +6,11 @@ macro_rules! gen_fold {
         {
         let mut cur = $default;
         for a in $args {
-            if let $var(name) = a {
+            if let &$var(name) = a {
                 ($op)(&mut cur, name);
             } else {
                 return Err(AresError::UnexpectedType {
-                    value: a,
+                    value: a.clone(),
                     expected: stringify!($var).to_string()
                 });
             }
@@ -103,14 +103,16 @@ pub fn div_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 1.0f64, Value::Float, |acc: &mut f64, v: f64| *acc /= v)
 }
 
+
+// TODO: move this to a new strings module
 pub fn concat(args: &[Value]) -> AresResult<Value> {
     let mut buffer = String::new();
     for v in args {
-        if let Value::String(s) = v {
-            buffer.push_str(&s)
+        if let &Value::String(ref s) = v {
+            buffer.push_str(&s[..])
         } else {
             return Err(AresError::UnexpectedType {
-                value: v,
+                value: v.clone(),
                 expected: "Value::String".into()
             })
         }

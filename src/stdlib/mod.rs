@@ -56,9 +56,9 @@ pub fn load_all(env: &Env) {
 
 pub fn load_logical(env: &Env) {
     let mut env = env.borrow_mut();
-    env.insert_here("and", free_fn("and", self::logical::and));
-    env.insert_here("or", free_fn("or", self::logical::or));
-    env.insert_here("xor", free_fn("xor", self::logical::xor));
+    env.insert_here("and", ast_fn("and", self::logical::and));
+    env.insert_here("or", ast_fn("or", self::logical::or));
+    env.insert_here("xor", ast_fn("xor", self::logical::xor));
 }
 
 pub fn load_core(env: &Env) {

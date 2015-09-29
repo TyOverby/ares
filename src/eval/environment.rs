@@ -2,9 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-use ::{Value, AresResult};
-
-use super::{ForeignFunction};
+use ::Value;
 
 pub type Env = Rc<RefCell<Environment>>;
 pub struct Environment {

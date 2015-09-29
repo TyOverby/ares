@@ -87,15 +87,6 @@ impl <'a> From<&'a str> for Value {
     }
 }
 
-impl <S, F> From<(S, F)> for Value
-where S: Into<String>,
-      F: Fn(&mut Iterator<Item=Value>) -> AresResult<Value> + 'static
-{
-    fn from((name, f): (S, F)) -> Value {
-        Value::ForeignFn(ForeignFunction::new_free_function(name.into(), Rc::new(f)))
-    }
-}
-
 impl PartialEq for Value {
     fn eq(&self, other: &Value) -> bool {
         use ::Value::*;

@@ -1,15 +1,17 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Env, AresResult, AresError, ForeignFunction};
+use ::{Value, Env, AresResult, AresError, free_fn};
 use super::util::{no_more_or_arity_err, unwrap_or_arity_err};
 
-pub fn build_list(args: &mut Iterator<Item=&Value>,
+pub fn build_list(args: &[Value],
                   env: &Env,
                   eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
     let writer = vec.clone();
-    let func = move |values: &mut Iterator<Item=Value>| {
+
+    let func = move |values: &[Value]| -> AresResult<Value> {
         match &mut *writer.borrow_mut() {
             &mut Some(ref mut adder) => {
                 let mut last = None;
@@ -19,7 +21,7 @@ pub fn build_list(args: &mut Iterator<Item=&Value>,
                 }
 
                 match last {
-                    Some(v) => Ok(v),
+                    Some(v) => Ok(v.clone()),
                     None => Err(AresError::UnexpectedArity {
                         found: 0,
                         expected: "at least 1".to_string()
@@ -33,8 +35,7 @@ pub fn build_list(args: &mut Iterator<Item=&Value>,
         }
     };
 
-    let boxed_fn = ForeignFunction::new_free_function("add".into(), Rc::new(func));
-    let boxed_fn = Value::ForeignFn(boxed_fn);
+    let boxed_fn: Value = free_fn("add", func);
 
     let evaluator = match args.next() {
         Some(lambda) => lambda.clone(),
@@ -60,9 +61,10 @@ pub fn build_list(args: &mut Iterator<Item=&Value>,
     Ok(Value::new_list(v.take().unwrap()))
 }
 
-pub fn foreach(args: &mut Iterator<Item=&Value>,
+pub fn foreach(args: &[Value],
                env: &Env,
                eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let should_be_list = try!(unwrap_or_arity_err(args.next(), 0, "exactly 2"));
     let list = match try!(eval(should_be_list, env)) {
         Value::List(ref l) => l.clone(),
@@ -73,7 +75,7 @@ pub fn foreach(args: &mut Iterator<Item=&Value>,
     };
 
     let func = try!(unwrap_or_arity_err(args.next().cloned(), 1, "exactly 2"));
-    try!(no_more_or_arity_err(args, 2, "exactly 2"));
+    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
 
     let mut count = 0;
     for element in list.iter() {

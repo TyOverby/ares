@@ -4,7 +4,8 @@ use std::cell::RefCell;
 use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
 use super::util::{unwrap_or_arity_err, no_more_or_arity_err};
 
-pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
+pub fn equals(args: &[Value]) -> AresResult<Value> {
+    let mut args = args.iter();
     let first = try!(unwrap_or_arity_err(args.next(), 0, "at least 2"));
     let mut seen_2 = false;
 
@@ -25,9 +26,10 @@ pub fn equals(args: &mut Iterator<Item=Value>) -> AresResult<Value> {
     Ok(Value::Bool(true))
 }
 
-pub fn lambda(args: &mut Iterator<Item=&Value>,
+pub fn lambda(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let param_names = match try!(unwrap_or_arity_err(args.next(), 0, "2 or more")) {
         &Value::List(ref v) => {
             let r: AresResult<Vec<String>> = v.iter().map(|n| {
@@ -63,9 +65,10 @@ pub fn lambda(args: &mut Iterator<Item=&Value>,
                 env.clone())))
 }
 
-pub fn define(args: &mut Iterator<Item=&Value>,
+pub fn define(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let name: String = match try!(unwrap_or_arity_err(args.next(), 0, "exactly 2")) {
         &Value::Ident(ref s) => (**s).clone(),
         &ref other => return Err(AresError::UnexpectedType {
@@ -80,16 +83,17 @@ pub fn define(args: &mut Iterator<Item=&Value>,
 
     let value = try!(unwrap_or_arity_err(args.next(), 1, "exactly 2"));
 
-    try!(no_more_or_arity_err(args, 2, "exactly 2"));
+    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
 
     let result = try!(eval(value, env));
-    env.borrow_mut().insert_current_level(name, result.clone());
+    env.borrow_mut().insert_here(name, result.clone());
     Ok(result)
 }
 
-pub fn set(args: &mut Iterator<Item=&Value>,
+pub fn set(args: &[Value],
               env: &Rc<RefCell<Environment>>,
               eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let name = match try!(unwrap_or_arity_err(args.next(), 0, "exactly 2")) {
         &Value::Ident(ref s) => (**s).clone(),
         &ref v => return Err(AresError::UnexpectedType {
@@ -100,7 +104,7 @@ pub fn set(args: &mut Iterator<Item=&Value>,
 
     let value = try!(unwrap_or_arity_err(args.next(), 1, "exactly 2"));
 
-    try!(no_more_or_arity_err(args, 2, "exactly 2"));
+    try!(no_more_or_arity_err(&mut args, 2, "exactly 2"));
 
     if !env.borrow().is_defined(&name) {
         return Err(AresError::UndefinedName(name.into()))
@@ -112,17 +116,19 @@ pub fn set(args: &mut Iterator<Item=&Value>,
     Ok(result)
 }
 
-pub fn quote(args: &mut Iterator<Item=&Value>,
+pub fn quote(args: &[Value],
               _env: &Rc<RefCell<Environment>>,
               _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let first = try!(unwrap_or_arity_err(args.next().cloned(), 0, "exactly 1"));
-    try!(no_more_or_arity_err(args, 1, "exactly 1"));
+    try!(no_more_or_arity_err(&mut args, 1, "exactly 1"));
     Ok(first)
 }
 
-pub fn cond(args: &mut Iterator<Item=&Value>,
+pub fn cond(args: &[Value],
             env: &Rc<RefCell<Environment>>,
             eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+    let mut args = args.iter();
     let (cond, true_branch, false_branch) =
         (try!(unwrap_or_arity_err(args.next(), 0, "exactly 3")),
          try!(unwrap_or_arity_err(args.next(), 1, "exactly 3")),

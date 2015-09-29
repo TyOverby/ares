@@ -9,15 +9,16 @@ macro_rules! gen_num_method {
         gen_num_method!($name, $inv, $outv, |a| a);
     };
     ($name: ident, $inv: path, $outv: path, $conv: expr) => {
-        pub fn $name(it: &mut Iterator<Item=Value>) -> AresResult<Value> {
-            let value = match try!(unwrap_or_arity_err(it.next(), 0, "exactly 1")) {
-                $inv(v) => $outv($conv(v.$name())),
+        pub fn $name(it: &[Value]) -> AresResult<Value> {
+            let mut it = it.iter();
+            let value = match try!(unwrap_or_arity_err(it.nth(0), 0, "exactly 1")) {
+                &$inv(v) => $outv($conv(v.$name())),
                 other => return Err(AresError::UnexpectedType{
-                    value: other,
+                    value: other.clone(),
                     expected: stringify!($inv).into()
                 })
             };
-            try!(no_more_or_arity_err(it, 1, "exactly 1"));
+            try!(no_more_or_arity_err(&mut it, 1, "exactly 1"));
             Ok(value)
         }
     }

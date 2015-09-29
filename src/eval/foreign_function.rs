@@ -7,17 +7,19 @@ pub use super::environment::{Env, Environment};
 #[derive(Clone)]
 pub struct ForeignFunction {
     pub name: String,
-    pub function: Rc<Fn(&[Value], &Env, Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>
+    pub function: Rc<Fn(&[Value], &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>
 }
 
 pub fn free_fn<S, F>(name: S, func: F) -> Value
 where S: Into<String>,
       F: Fn(&[Value]) -> AresResult<Value> + 'static
 {
-    let closure = |values: &[Value], env: &Env, eval: Fn(&Value, &Env) -> AresResult<Value>| {
-        let evaluated: Vec<_> = values.iter().map(|v| eval(v, env)).collect();
-        func(&evaluated)
+    let closure = move |values: &[Value], env: &Env, eval: &Fn(&Value, &Env) -> AresResult<Value>| {
+        let evaluated: Result<Vec<_>, _> = values.iter().map(|v| eval(v, env)).collect();
+        let evaluated = try!(evaluated);
+        func(&evaluated[..])
     };
+
     let boxed = Rc::new(closure);
     Value::ForeignFn(ForeignFunction {
         name: name.into(),
@@ -28,7 +30,7 @@ where S: Into<String>,
 
 pub fn ast_fn<S, F>(name: S, func: F) -> Value
 where S: Into<String>,
-      F: Fn(&[Value], &Env, Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
+      F: Fn(&[Value], &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
 {
     let boxed = Rc::new(func);
     Value::ForeignFn(ForeignFunction {
