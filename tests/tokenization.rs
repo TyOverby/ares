@@ -1,5 +1,5 @@
 extern crate ares;
-use ares::tokenizer::parse;
+use ares::parse::parse;
 use ares::Value;
 
 macro_rules! parse_fail {

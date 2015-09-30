@@ -1,13 +1,13 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 
-pub mod tokenizer;
+pub mod parse;
 mod eval;
 pub mod stdlib;
 mod error;
 pub mod util;
 
-pub use tokenizer::parse;
+pub use parse::parse;
 pub use eval::{
     Procedure,
     eval,
