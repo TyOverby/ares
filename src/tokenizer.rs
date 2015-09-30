@@ -22,8 +22,8 @@ enum Open { LParen, LBrace, LBracket }
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum Close { RParen, RBrace, RBracket }
 
-use tokenizer::Open::*;
-use tokenizer::Close::*;
+use self::Open::*;
+use self::Close::*;
 
 impl Open {
     #[inline]
@@ -138,7 +138,7 @@ impl<'a> Iterator for TokenIter<'a>
 {
     type Item = Result<Token, ParseError>;
     fn next<'b>(&'b mut self) -> Option<Self::Item> {
-        use tokenizer::TokenType::*;
+        use self::TokenType::*;
         self.skip_ws();
         if let Some((start, curchar, pos)) = self.iter.next() {
             match curchar {
@@ -374,7 +374,7 @@ impl<'a> Error for ParseError {
     fn description(&self) -> &str { self.0.description() }
 }
 
-use tokenizer::ParseError_::*;
+use self::ParseError_::*;
 
 impl fmt::Display for ParseError_ {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -413,7 +413,7 @@ impl Error for ParseError_ {
 
 fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                      -> Result<Value, ParseError> {
-    use tokenizer::TokenType::*;
+    use self::TokenType::*;
     match tok.tt {
         Number(s) => Ok(try!(s.parse().map(Value::Int)
                                  .or_else(|_| s.parse().map(Value::Float))
