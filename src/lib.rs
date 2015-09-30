@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::collections::BTreeMap;
 
 pub mod tokenizer;
 mod eval;
@@ -40,6 +41,8 @@ pub enum Value {
     Float(f64),
     Int(i64),
     Bool(bool),
+    Array(Rc<Vec<Value>>),
+    Map(Rc<BTreeMap<Value, Value>>),
 
     Ident(Rc<String>),
     ForeignFn(ForeignFunction),
@@ -103,6 +106,8 @@ impl PartialEq for Value {
                 rc_to_usize(id1) == rc_to_usize(id2) || id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
+            (&Array(ref a1), &Array(ref a2)) => a1 == a2,
+            (&Map(ref m1), &Map(ref m2)) => m1 == m2,
             _ => false
         }
     }
@@ -122,6 +127,8 @@ impl std::hash::Hash for Value {
             &Value::Ident(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
+            &Value::Array(ref rc) => rc.hash(state),
+            &Value::Map(ref rc) => rc.hash(state),
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
@@ -120,32 +121,47 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::Ident(ref i) => format!("'{}", i),
 
-        &ref l@Value::List(_) => {
-            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>) {
-                match cur {
-                    &Value::List(ref l) => {
-                        let ptr = rc_to_usize(l);
-                        if seen.contains(&ptr) {
-                            buf.push_str("...");
-                        } else {
-                            seen.insert(ptr);
-                            buf.push_str("[");
-                            for v in l.iter() {
-                                build_buf(v, buf, seen);
-                                buf.push_str(", ");
-                            }
-                            // removing trailing comma and space
-                            buf.pop();
-                            buf.pop();
-                            buf.push_str("]");
-                        }
+        &ref l@Value::List(_) | &ref l@Value::Array(_) | &ref l@Value::Map(_) => {
+            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, is_list: bool) {
+                let ptr = rc_to_usize(vec);
+                if seen.contains(&ptr) {
+                    buf.push_str("...")
+                } else {
+                    seen.insert(ptr);
+                    buf.push_str(if is_list { "(" } else { "[" });
+                    for v in vec.iter() {
+                        build_buf(v, buf, seen);
+                        buf.push_str(", ");
                     }
-                    other => {
-                        buf.push_str(&to_string_helper(&other))
-                    }
+                    // remove trailing comma ans space
+                    buf.pop();
+                    buf.pop();
+                    buf.push_str(if is_list { ")" } else { "]" });
                 }
             }
-
+            fn format_pairs(m: &Rc<BTreeMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
+                let ptr = rc_to_usize(m);
+                if seen.contains(&ptr) {
+                    buf.push_str("...")
+                } else {
+                    seen.insert(ptr);
+                    buf.push_str("{");
+                    for (k, v) in m.iter() {
+                        build_buf(k, buf, seen);
+                        buf.push_str(", ");
+                        build_buf(v, buf, seen);
+                    }
+                    buf.push_str("}")
+                }
+            }
+            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>) {
+                match cur {
+                    &Value::List(ref v) => format_singles(v, buf, seen, true),
+                    &Value::Array(ref v) => format_singles(v, buf, seen, false),
+                    &Value::Map(ref m) => format_pairs(m, buf, seen),
+                    other => buf.push_str(&to_string_helper(&other))
+                }
+            }
             let mut inner = String::new();
             let mut seen = HashSet::new();
             build_buf(&l, &mut inner, &mut seen);
