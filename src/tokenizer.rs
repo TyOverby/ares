@@ -8,13 +8,55 @@ use std::char;
 use ::Value;
 
 #[derive(Debug, Clone)]
-enum Token {
-    RParen(Position),
-    LParen,
+enum TokenType {
+    Open(Open),
+    Close(Close),
     Quote,
     String(String),
     Number(String),
     Symbol(String)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+enum Open { LParen, LBrace, LBracket }
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+enum Close { RParen, RBrace, RBracket }
+
+use tokenizer::Open::*;
+use tokenizer::Close::*;
+
+impl Open {
+    #[inline]
+    fn closed_by(&self) -> Close {
+        match self {
+            &LParen => RParen,
+            &LBrace => RBrace,
+            &LBracket => RBracket
+        }
+    }
+}
+
+impl Close {
+    #[inline]
+    fn to_char(&self) -> char {
+        match self {
+            &RParen => ')',
+            &RBrace => '}',
+            &RBracket => ']'
+        }
+    }
+}
+
+struct Token {
+    tt: TokenType,
+    start: Position,
+    end: Option<Position>
+}
+
+impl Token {
+    fn new(t: TokenType, start: Position, end: Option<Position>) -> Token {
+        Token { tt: t, start: start, end: end}
+    }
 }
 
 struct TokenIter<'a>
@@ -24,12 +66,33 @@ struct TokenIter<'a>
 }
 
 struct CharIndicesLineCol<'a> {
-    line: usize,
-    col: usize,
+    pos: Position,
     iter: CharIndices<'a>
 }
 
-type Position = (usize, usize);
+#[derive(Debug, Copy, Clone)]
+pub struct Position(usize, usize);
+
+impl<'a> fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "line {}, column {}", self.0, self.1)
+    }
+}
+
+impl Position {
+    fn advance(&mut self, c: char) {
+        if c == '\n' {
+            self.0 += 1;
+            self.1 = 0;
+        } else {
+            self.1 += 1;
+        }
+    }
+    fn next(&self) -> Position {
+        Position(self.0, self.1 + 1)
+    }
+}
+
 
 #[derive(Debug)]
 enum ParseError_ {
@@ -37,8 +100,8 @@ enum ParseError_ {
     UnterminatedString(Position),
     ConversionError(String, Box<Error>),
     BadEscape(Position, String),
-    MissingRParen,
-    ExtraRParen(Position),
+    MissingRightDelimiter(Close),
+    ExtraRightDelimiter(Close, Position),
 }
 
 #[derive(Debug)]
@@ -50,13 +113,8 @@ impl<'a> Iterator for CharIndicesLineCol<'a> {
         match self.iter.next() {
             None => None,
             Some((i, c)) => {
-                if c == '\n' {
-                    self.line += 1;
-                    self.col = 0;
-                } else {
-                    self.col += 1;
-                }
-                Some((i, c, (self.line, self.col)))
+                self.pos.advance(c);
+                Some((i, c, self.pos))
             }
         }
     }
@@ -80,14 +138,19 @@ impl<'a> Iterator for TokenIter<'a>
 {
     type Item = Result<Token, ParseError>;
     fn next<'b>(&'b mut self) -> Option<Self::Item> {
+        use tokenizer::TokenType::*;
         self.skip_ws();
         if let Some((start, curchar, pos)) = self.iter.next() {
             match curchar {
-                '\'' => Some(Ok(Token::Quote)),
+                '\'' => Some(Ok(Token::new(Quote, pos, None))),
                 c if is_symbol_start_c(c) => Some(self.read_symbol(c, start, pos)),
                 c if c.is_digit(10) => Some(self.read_number(start, pos)),
-                '(' => Some(Ok(Token::LParen)),
-                ')' => Some(Ok(Token::RParen(pos))),
+                '(' => Some(Ok(Token::new(Open(LParen), pos, None))),
+                ')' => Some(Ok(Token::new(Close(RParen), pos, None))),
+                '[' => Some(Ok(Token::new(Open(LBracket), pos, None))),
+                ']' => Some(Ok(Token::new(Close(RBracket), pos, None))),
+                '{' => Some(Ok(Token::new(Open(LBrace), pos, None))),
+                '}' => Some(Ok(Token::new(Close(RBrace), pos, None))),
                 '"' => Some(self.read_string(start + 1, pos)),
                 _ => None
             }
@@ -100,7 +163,7 @@ impl<'a> Iterator for TokenIter<'a>
 impl<'a> TokenIter<'a>
 {
     fn new(s: &'a str) -> TokenIter<'a> {
-        let iter = CharIndicesLineCol { line: 1, col: 0, iter: s.char_indices() };
+        let iter = CharIndicesLineCol { pos: Position(1, 0), iter: s.char_indices() };
         TokenIter { input: s, iter: iter.peekable() }
     }
 
@@ -151,7 +214,7 @@ impl<'a> TokenIter<'a>
         }
     }
 
-    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position) 
+    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
                          -> Result<char, ParseError> {
         // hand-rolled version of self.iter.take(2).collect()
         let v : Vec<_> = self.iter.next().map_or(vec![], (|x| self.iter.next().map_or(vec![x], |y| vec![x,y])));
@@ -197,6 +260,7 @@ impl<'a> TokenIter<'a>
     fn read_string<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token, ParseError> {
         let mut start = Some(start);
         let mut string = String::new();
+        let endpos;
         loop {
             let next = self.iter.next();
             match next {
@@ -209,24 +273,27 @@ impl<'a> TokenIter<'a>
                         start = None;
                     } else if c == '"' {
                         string.push_str(&self.input[start.unwrap()..j]);
+                        endpos = pos;
                         break
                     }
                 }
             }
         };
         if let Some(&(_, c, pos)) = self.iter.peek() {
-            delimcheck!(c, pos, startpos, "string")
+            delimcheck!(c, pos, startpos, "string");
         };
-        Ok(Token::String(string)) //&self.input[start..stop]))
+        Ok(Token::new(TokenType::String(string), startpos, Some(endpos)))
     }
 
-    fn read_number<'b>(&'b mut self, start: usize, start_pos: Position) -> Result<Token, ParseError> {
+    fn read_number<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token, ParseError> {
         let stop;
+        let mut endpos = startpos.next();
         loop {
             if let Some(&(j, c, pos)) = self.iter.peek() {
                 if !is_number_c(c) {
                     stop = j;
-                    delimcheck!(c, pos, start_pos, "number");
+                    delimcheck!(c, pos, startpos, "number");
+                    endpos = pos;
                     break
                 }
                 self.iter.next();
@@ -235,26 +302,29 @@ impl<'a> TokenIter<'a>
                 break;
             }
         }
-        Ok(Token::Number(self.input[start..stop].into()))
+        Ok(Token::new(TokenType::Number(self.input[start..stop].into()), startpos, Some(endpos)))
     }
 
-    fn read_symbol<'b>(&'b mut self, symstart: char, start: usize, start_pos: Position)
+    fn read_symbol<'b>(&'b mut self, symstart: char, start: usize, startpos: Position)
                    -> Result<Token, ParseError> {
         let stop;
-        if let Some(&(j, c, _pos)) = self.iter.peek() {
+        let mut endpos = startpos.next();
+        if let Some(&(j, c, pos)) = self.iter.peek() {
+            endpos = pos;
             if c.is_digit(10) && (symstart == '+' || symstart == '-') {
                 self.iter.next();
-                return self.read_number(start, start_pos)
+                return self.read_number(start, startpos)
             } else if is_delimiter_c(c) {
-                return Ok(Token::Symbol(self.input[start..j].into()))
+                return Ok(Token::new(TokenType::Symbol(self.input[start..j].into()), startpos, Some(pos)))
             }
         }
         self.iter.next();
         loop {
             if let Some(&(j, c, pos)) = self.iter.peek() {
+                endpos = pos;
                 if !is_symbol_c(c) {
                     stop = j;
-                    delimcheck!(c, pos, start_pos, "symbol");
+                    delimcheck!(c, pos, startpos, "symbol");
                     break
                 }
                 self.iter.next();
@@ -263,13 +333,13 @@ impl<'a> TokenIter<'a>
                 break
             }
         }
-        Ok(Token::Symbol(self.input[start..stop].into()))
+        Ok(Token::new(TokenType::Symbol(self.input[start..stop].into()), startpos, Some(endpos)))
     }
 }
 
 #[inline]
 fn is_delimiter_c(c: char) -> bool {
-    c.is_whitespace() || c == '(' || c == ')'
+    c.is_whitespace() || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']'
 }
 
 #[inline]
@@ -321,9 +391,9 @@ impl fmt::Display for ParseError_ {
             BadEscape(pos, ref s) =>
                 write!(f, "Invalid escape sequence starting at line {}, column {}: {}",
                        pos.0, pos.1, s),
-            MissingRParen => write!(f, "Missing right parenthesis"),
-            ExtraRParen(pos) =>
-                write!(f, "Extra right parenthesis at line {}, column {}", pos.0, pos.1)
+            MissingRightDelimiter(c) => write!(f, "Missing right delimiter {}", c.to_char()),
+            ExtraRightDelimiter(c, pos) =>
+                write!(f, "Extra right delimiter {} at line {}, column {}", c.to_char(), pos.0, pos.1)
         }
     }
 }
@@ -335,16 +405,16 @@ impl Error for ParseError_ {
             UnterminatedString(_) => "Unterminated string",
             ConversionError(_, ref e) => e.description(),
             BadEscape(..) => "Bad escape sequence",
-            MissingRParen => "Missing right parenthesis",
-            ExtraRParen(_) => "Extra right parenthesis"
+            MissingRightDelimiter(..) => "Missing right delimiter",
+            ExtraRightDelimiter(..) => "Extra right delimiter"
         }
     }
 }
 
 fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                      -> Result<Value, ParseError> {
-    use tokenizer::Token::*;
-    match tok {
+    use tokenizer::TokenType::*;
+    match tok.tt {
         Number(s) => Ok(try!(s.parse().map(Value::Int)
                                  .or_else(|_| s.parse().map(Value::Float))
                                  .map_err(|e| ParseError(ConversionError(s, Box::new(e)))))),
@@ -358,10 +428,11 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                 Some(v) => vec![Value::new_ident("quote"), v]
             })
         }),
-        RParen(pos)   => parse_error(ExtraRParen(pos)),
-        LParen        => Ok(try!(parse_list(tok_stream)))
+        Close(close)  => parse_error(ExtraRightDelimiter(close, tok.start)),
+        Open(open)    => Ok(Value::new_list(try!(parse_delimited(tok_stream, open))))
     }
 }
+
 
 fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Value>, ParseError> {
     if let Some(tok) = tok_stream.next() {
@@ -371,17 +442,22 @@ fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Va
     }
 }
 
-fn parse_list<'a, 'b>(tok_stream: &'a mut TokenIter<'b>)
-                      -> Result<Value, ParseError> {
+fn parse_delimited<'a, 'b>(tok_stream: &'a mut TokenIter<'b>, opener: Open)
+                      -> Result<Vec<Value>, ParseError> {
     let mut v = vec![];
     loop {
         if let Some(tok_or_err) = tok_stream.next() {
-            match try!(tok_or_err) {
-                Token::RParen(_) => return Ok(Value::List(Rc::new(v))),
-                tok       => v.push(try!(one_expr(tok, tok_stream)))
+            let tok = try!(tok_or_err);
+            match tok.tt {
+                TokenType::Close(close) => if close == opener.closed_by() {
+                    return Ok(v)
+                } else {
+                    return parse_error(ExtraRightDelimiter(opener.closed_by(), tok.start))
+                },
+                _ => v.push(try!(one_expr(tok, tok_stream)))
             }
         } else {
-            return parse_error(MissingRParen)
+            return parse_error(MissingRightDelimiter(opener.closed_by()))
         }
     }
 }
