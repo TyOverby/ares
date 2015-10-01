@@ -1,12 +1,10 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-
-use ::{Value, Env, AresResult, AresError, free_fn, apply};
+use ::{Value, AresResult, AresError, free_fn, LoadedContext};
 use super::util::expect_arity;
 
-pub fn build_list(args: &[Value],
-                  env: &Env,
-                  eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn build_list(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
     let writer = vec.clone();
@@ -39,18 +37,16 @@ pub fn build_list(args: &[Value],
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
-    try!(eval(&Value::new_list(vec![evaluator, boxed_fn]), env));
+    try!(ctx.eval(&Value::new_list(vec![evaluator, boxed_fn])));
 
     let mut v = vec.borrow_mut();
     Ok(Value::new_list(v.take().unwrap()))
 }
 
-pub fn foreach(args: &[Value],
-               env: &Env,
-               eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn foreach(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let should_be_list = args[0].clone();
-    let list: Vec<_> = match try!(eval(&should_be_list, env)) {
+    let list: Vec<_> = match try!(ctx.eval(&should_be_list)) {
         Value::List(ref l) => (&**l).clone(),
         other => return Err(AresError::UnexpectedType{
             value: other,
@@ -59,12 +55,12 @@ pub fn foreach(args: &[Value],
     };
 
     let func = args[1].clone();
-    let func = try!(eval(&func, env));
+    let func = try!(ctx.eval(&func));
 
     let mut count = 0;
     for element in list {
         let singleton_slice: [Value; 1] = [element];
-        try!(apply(&func, &singleton_slice[..], env));
+        try!(ctx.call(&func, &singleton_slice[..]));
         count += 1;
     }
 

@@ -1,4 +1,4 @@
-use ::{Env, free_fn, ast_fn};
+use ::{Env, free_fn, ast_fn, Context};
 
 pub mod arithmetic;
 pub mod math;
@@ -24,15 +24,15 @@ pub mod util {
     }
 }
 
-fn eval_into<S: AsRef<str>>(src: &S, env: &Env) {
-    use ::{eval, parse};
-    let parsed = parse(src.as_ref()).unwrap();
-    for statement in &parsed {
-        eval(statement, env).unwrap();
-    }
+fn eval_into<S: AsRef<str>>(src: &S, env: &mut Env) {
+    let mut ctx = Context::new_empty();
+    let mut ctx = ctx.load();
+    ctx.with_other_env(env, |ctx| {
+        ctx.eval_str(src.as_ref()).unwrap();
+    });
 }
 
-pub fn load_all(env: &Env) {
+pub fn load_all(env: &mut Env) {
     load_logical(env);
     load_core(env);
     load_list(env);
@@ -63,7 +63,7 @@ pub fn load_core(env: &Env) {
     env.insert_here("lambda", ast_fn("lambda", self::core::lambda));
 }
 
-pub fn load_list(env: &Env) {
+pub fn load_list(env: &mut Env) {
     {
         let mut env = env.borrow_mut();
         env.insert_here("build-list", ast_fn("build-list", self::list::build_list));

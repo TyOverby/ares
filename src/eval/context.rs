@@ -1,42 +1,41 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::marker::PhantomData;
+//use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 use super::{Env, eval, apply};
 use ::{Value, AresResult, AresError, parse, stdlib, Environment};
 
-pub struct Context<T> {
+pub struct Context {
     env: Env,
-    _state: PhantomData<T>,
+    //_state: PhantomData<T>,
 }
 
-pub struct LoadedContext<'a, 'b, T: 'a + 'b> {
-    ctx: &'b mut Context<T>,
-    state: &'a mut T,
+pub struct LoadedContext<'a> {
+    ctx: &'a mut Context,
+    //state: &'a mut T,
 }
 
-impl <T> Context<T> {
-    pub fn new() -> Context<T> {
-        let env = Rc::new(RefCell::new(Environment::new()));
-        stdlib::load_all(&env);
+impl Context {
+    pub fn new() -> Context {
+        let mut env = Rc::new(RefCell::new(Environment::new()));
+        stdlib::load_all(&mut env);
         Context {
             env: env,
-            _state: PhantomData,
+            //_state: PhantomData,
         }
     }
 
-    pub fn new_empty() -> Context<T> {
+    pub fn new_empty() -> Context {
         Context {
             env: Rc::new(RefCell::new(Environment::new())),
-            _state: PhantomData,
+            //_state: PhantomData,
         }
     }
 
-    pub fn load<'a, 'b>(&'b mut self, state: &'a mut T) -> LoadedContext<'a, 'b, T> {
+    pub fn load<'a>(&'a mut self) -> LoadedContext<'a> {
         LoadedContext {
             ctx: self,
-            state: state
         }
     }
 
@@ -45,16 +44,25 @@ impl <T> Context<T> {
     }
 }
 
-impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
+impl <'a> LoadedContext<'a> {
+    pub fn with_other_env<F, R>(&mut self, env: &mut Env, f: F) -> R
+    where F: FnOnce(&mut LoadedContext<'a>) -> R {
+        use std::mem::swap;
+        swap(&mut self.ctx.env, env);
+        let r = f(self);
+        swap(&mut self.ctx.env, env);
+        r
+    }
+
     pub fn eval(&mut self, value: &Value) -> AresResult<Value> {
-        eval(value, self.env())
+        eval(value, self)
     }
 
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
         let trees = try!(parse(program));
         let mut last = None;
         for tree in trees {
-            last = Some(try!(eval(&tree, self.env())))
+            last = Some(try!(self.eval(&tree)))
         }
         match last {
             Some(v) => Ok(v),
@@ -62,8 +70,8 @@ impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
         }
     }
 
-    pub fn call(&mut self, func: &Value, mut args: &[Value]) -> AresResult<Value> {
-        apply(func, &args[..], self.env())
+    pub fn call(&mut self, func: &Value, args: &[Value]) -> AresResult<Value> {
+        apply(func, &args[..], self)
     }
 
     pub fn call_named<S: AsRef<str>>(&mut self, global_fn: S, args: &[Value]) -> AresResult<Value> {
@@ -75,15 +83,15 @@ impl <'a, 'b,  T> LoadedContext<'a, 'b, T> {
     }
 }
 
-impl <'a,'b, T > Deref for LoadedContext<'a, 'b, T > {
-    type Target = Context<T>;
-    fn deref(&self) -> &Context<T> {
+impl <'a> Deref for LoadedContext<'a> {
+    type Target = Context;
+    fn deref(&self) -> &Context {
         &self.ctx
     }
 }
 
-impl <'a, 'b, T> DerefMut for LoadedContext<'a, 'b, T> {
-    fn deref_mut(&mut self) -> &mut Context<T> {
+impl <'a> DerefMut for LoadedContext<'a> {
+    fn deref_mut(&mut self) -> &mut Context {
         &mut self.ctx
     }
 }
