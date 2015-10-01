@@ -1,6 +1,7 @@
 #![allow(mutable_transmutes)]
-
 use std::rc::Rc;
+use std::fmt::{Debug, Formatter};
+use std::fmt::Error as FormatError;
 
 pub mod tokenizer;
 mod eval;
@@ -37,7 +38,6 @@ macro_rules! gen_from {
     }
 }
 
-#[derive(Debug)]
 pub enum Value<S> {
     List(Rc<Vec<Value<S>>>),
     String(Rc<String>),
@@ -50,6 +50,7 @@ pub enum Value<S> {
     Lambda(Procedure<S>)
 }
 
+
 impl <S> Value<S> {
     pub fn new_string<N: Into<String>>(s: N) -> Value<S> {
         Value::String(Rc::new(s.into()))
@@ -59,6 +60,12 @@ impl <S> Value<S> {
     }
     pub fn new_list(v: Vec<Value<S>>) -> Value<S> {
         Value::List(Rc::new(v))
+    }
+}
+
+impl <S> Debug for Value<S> {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FormatError> {
+        fmt.write_str(&stdlib::types::to_string_helper(self))
     }
 }
 

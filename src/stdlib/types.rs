@@ -110,7 +110,7 @@ pub fn to_string<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     Ok(Value::String(Rc::new(s)))
 }
 
-fn to_string_helper<S>(value: &Value<S>) -> String {
+pub fn to_string_helper<S>(value: &Value<S>) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),

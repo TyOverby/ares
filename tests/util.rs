@@ -26,19 +26,13 @@ macro_rules! eval_err {
     }
 }
 
-fn basic_environment() -> Rc<RefCell<Environment>> {
-    let env = Environment::new();
-    let env = Rc::new(RefCell::new(env));
-    stdlib::load_all(&env);
-    env
-}
+pub fn e(program: &str) -> AresResult<Value<()>, ()> {
+    let res = {
+        let mut ctx = Context::<()>::new();
+        let mut dummy = ();
+        let mut ctx = ctx.load(&mut dummy);
 
-pub fn e(program: &str) -> AresResult<Value> {
-    let trees = parse(program).unwrap();
-    let mut env = basic_environment();
-    let mut last = None;
-    for tree in trees {
-        last = Some(try!(eval(&tree, &mut env)))
-    }
-    Ok(last.expect("no program found"))
+        ctx.eval_str(program)
+    };
+    res
 }

@@ -1,10 +1,10 @@
 extern crate ares;
-use ares::tokenizer::parse;
-use ares::Value;
+use ares::tokenizer::{parse, ParseError};
+use ares::{Value, AresResult};
 
 macro_rules! parse_fail {
     ($prog: expr, $estr: expr) => ({
-        let parsed = parse($prog);
+        let parsed: Result<Vec<Value<()>>, ParseError> = parse($prog);
         assert!(parsed.is_err());
         let err = parsed.unwrap_err();
         assert_eq!(format!("{}", err), $estr)
@@ -13,11 +13,11 @@ macro_rules! parse_fail {
 
 macro_rules! parse_ok {
     ($prog: expr) => ({
-        let parsed = parse($prog);
+        let parsed: Result<Vec<Value<()>>, ParseError> = parse($prog);
         assert!(parsed.is_ok())
     });
     ($prog: expr, $v: expr) => ({
-        let parsed = parse($prog);
+        let parsed: Result<Vec<Value<()>>, ParseError> = parse($prog);
         assert!(parsed.is_ok());
         let v = parsed.unwrap();
         assert_eq!(v[0], Value::from($v));
