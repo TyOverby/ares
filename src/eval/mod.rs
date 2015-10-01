@@ -15,19 +15,13 @@ mod context;
 
 pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> {
     match value {
-        &ref v@Value::String(_) => Ok(v.clone()),
-        &ref v@Value::Int(_) => Ok(v.clone()),
-        &ref v@Value::Float(_) => Ok(v.clone()),
-        &ref v@Value::Bool(_) => Ok(v.clone()),
-        &ref v@Value::ForeignFn(_) => Ok(v.clone()),
-        &ref v@Value::Lambda(_) => Ok(v.clone()),
 
         &Value::Ident(ref ident) => {
             match env.borrow().get(&ident) {
                 Some(v) => Ok(v),
                 None => Err(AresError::UndefinedName((**ident).clone()))
             }
-        }
+        },
 
         &Value::List(ref items) => {
             let head = match items.first() {
@@ -48,7 +42,10 @@ pub fn eval(value: &Value, env: &Rc<RefCell<Environment>>) -> AresResult<Value> 
                 }
                 x => Err(AresError::UnexecutableValue(x))
             }
-        }
+        },
+
+        &ref v => Ok(v.clone())
+
     }
 }
 

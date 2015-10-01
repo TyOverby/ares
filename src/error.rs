@@ -1,5 +1,5 @@
 use ::Value;
-use ::tokenizer::ParseError;
+use ::parse::ParseError;
 
 pub type AresResult<T> = Result<T, AresError>;
 

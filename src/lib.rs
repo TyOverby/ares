@@ -1,12 +1,13 @@
 use std::rc::Rc;
+use std::collections::HashMap;
 
-pub mod tokenizer;
+pub mod parse;
 mod eval;
 pub mod stdlib;
 mod error;
 pub mod util;
 
-pub use tokenizer::parse;
+pub use parse::parse;
 pub use eval::{
     Procedure,
     eval,
@@ -41,6 +42,7 @@ pub enum Value {
     Float(f64),
     Int(i64),
     Bool(bool),
+    Map(Rc<HashMap<Value, Value>>),
 
     Ident(Rc<String>),
     ForeignFn(ForeignFunction),
@@ -81,6 +83,12 @@ impl <T: Into<Value>> From<Vec<T>> for Value {
     }
 }
 
+impl <T: Into<Value> + std::hash::Hash + Eq> From<HashMap<T, T>> for Value {
+    fn from(x: HashMap<T, T>) -> Value {
+        Value::Map(Rc::new(x.into_iter().map(|(k, v)| (k.into(), v.into())).collect()))
+    }
+}
+
 impl <'a> From<&'a str> for Value {
     fn from(x: &'a str) -> Value {
         let s: String = x.into();
@@ -104,6 +112,7 @@ impl PartialEq for Value {
                 rc_to_usize(id1) == rc_to_usize(id2) || id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
+            (&Map(ref m1), &Map(ref m2)) => m1 == m2,
             _ => false
         }
     }
@@ -123,6 +132,7 @@ impl std::hash::Hash for Value {
             &Value::Ident(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
+            &Value::Map(_) => unimplemented!()  // hashmap not hashable.
         }
     }
 }
