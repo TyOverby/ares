@@ -1,10 +1,8 @@
-use ::{Value, AresResult, Env, AresError};
+use ::{Value, AresResult, Env, AresError, LoadedContext};
 
-pub fn and(args: &[Value],
-           env: &Env,
-           eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn and<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     for value in args {
-        match try!(eval(value, env)) {
+        match try!(ctx.eval(value)) {
             Value::Bool(true) => { }
             Value::Bool(false) => return Ok(Value::Bool(false)),
             other => return Err(AresError::UnexpectedType {
@@ -16,11 +14,9 @@ pub fn and(args: &[Value],
     Ok(Value::Bool(true))
 }
 
-pub fn or(args: &[Value],
-           env: &Env,
-           eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn or<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     for value in args {
-        match try!(eval(value, env)) {
+        match try!(ctx.eval(value)) {
             Value::Bool(true) => return Ok(Value::Bool(true)),
             Value::Bool(false) => {},
             other => return Err(AresError::UnexpectedType {
@@ -32,13 +28,11 @@ pub fn or(args: &[Value],
     Ok(Value::Bool(false))
 }
 
-pub fn xor(args: &[Value],
-           env: &Env,
-           eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn xor<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     let mut found_true = false;
     let mut found_false = false;
     for value in args {
-        match try!(eval(value, env)) {
+        match try!(ctx.eval(value)) {
             Value::Bool(true) => {
                 found_true = true;
                 if found_true && found_false {

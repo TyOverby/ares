@@ -341,8 +341,8 @@ impl Error for ParseError_ {
     }
 }
 
-fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
-                     -> Result<Value, ParseError> {
+fn one_expr<'a, 'b, S>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
+                     -> Result<Value<S>, ParseError> {
     use tokenizer::Token::*;
     match tok {
         Number(s) => Ok(try!(s.parse().map(Value::Int)
@@ -363,7 +363,7 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
     }
 }
 
-fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Value>, ParseError> {
+fn parse_one_expr<'a, 'b, S>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Value<S>>, ParseError> {
     if let Some(tok) = tok_stream.next() {
         one_expr(try!(tok), tok_stream).map(Some)
     } else {
@@ -371,8 +371,8 @@ fn parse_one_expr<'a, 'b>(tok_stream: &'a mut TokenIter<'b>) -> Result<Option<Va
     }
 }
 
-fn parse_list<'a, 'b>(tok_stream: &'a mut TokenIter<'b>)
-                      -> Result<Value, ParseError> {
+fn parse_list<'a, 'b, S>(tok_stream: &'a mut TokenIter<'b>)
+                      -> Result<Value<S>, ParseError> {
     let mut v = vec![];
     loop {
         if let Some(tok_or_err) = tok_stream.next() {
@@ -386,7 +386,7 @@ fn parse_list<'a, 'b>(tok_stream: &'a mut TokenIter<'b>)
     }
 }
 
-pub fn parse(input: &str) -> Result<Vec<Value>, ParseError> {
+pub fn parse<S>(input: &str) -> Result<Vec<Value<S>>, ParseError> {
     let mut v = vec![];
     let mut tok_iter = TokenIter::new(input);
      while let Some(value) = try!(parse_one_expr(&mut tok_iter)) {

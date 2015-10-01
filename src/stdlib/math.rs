@@ -9,7 +9,7 @@ macro_rules! gen_num_method {
         gen_num_method!($name, $inv, $outv, |a| a);
     };
     ($name: ident, $inv: path, $outv: path, $conv: expr) => {
-        pub fn $name(values: &[Value]) -> AresResult<Value> {
+        pub fn $name<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
             try!(expect_arity(values, |l| l == 1, "exactly 1"));
             let value = match values.first().unwrap() {
                 &$inv(v) => $outv($conv(v.$name())),

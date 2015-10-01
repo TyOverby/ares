@@ -1,21 +1,29 @@
 use std::rc::Rc;
 
-use ::{Value, AresResult, rc_to_usize, write_usize};
+use ::{Value, AresResult, rc_to_usize, write_usize, LoadedContext, eval};
 
 pub use super::environment::{Env, Environment};
 
-#[derive(Clone)]
-pub struct ForeignFunction {
+pub struct ForeignFunction<S> {
     pub name: String,
-    pub function: Rc<Fn(&[Value], &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value>>
+    pub function: Rc<Fn(&[Value<S>], &mut LoadedContext<S>) -> AresResult<Value<S>, S>>
 }
 
-pub fn free_fn<S, F>(name: S, func: F) -> Value
-where S: Into<String>,
-      F: Fn(&[Value]) -> AresResult<Value> + 'static
+impl <S> Clone for ForeignFunction<S> {
+    fn clone(&self) -> ForeignFunction<S> {
+        ForeignFunction {
+            name: self.name.clone(),
+            function: self.function.clone()
+        }
+    }
+}
+
+pub fn free_fn<N, F, S: 'static>(name: N, func: F) -> Value<S>
+where N: Into<String>,
+      F: Fn(&[Value<S>]) -> AresResult<Value<S>, S> + 'static
 {
-    let closure = move |values: &[Value], env: &Env, eval: &Fn(&Value, &Env) -> AresResult<Value>| {
-        let evaluated: Result<Vec<_>, _> = values.iter().map(|v| eval(v, env)).collect();
+    let closure = move |values: &[Value<S>], ctx: &mut LoadedContext<S> | {
+        let evaluated: Result<Vec<_>, _> = values.iter().map(|v| eval(v, ctx)).collect();
         let evaluated = try!(evaluated);
         func(&evaluated[..])
     };
@@ -28,9 +36,9 @@ where S: Into<String>,
 }
 
 
-pub fn ast_fn<S, F>(name: S, func: F) -> Value
-where S: Into<String>,
-      F: Fn(&[Value], &Env, &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> + 'static
+pub fn ast_fn<N, F, S: 'static>(name: N, func: F) -> Value<S>
+where N: Into<String>,
+      F: Fn(&[Value<S>], &mut LoadedContext<S>) -> AresResult<Value<S>, S> + 'static
 {
     let boxed = Rc::new(func);
     Value::ForeignFn(ForeignFunction {
@@ -40,22 +48,22 @@ where S: Into<String>,
 }
 
 
-impl ::std::fmt::Debug for ForeignFunction {
+impl <S> ::std::fmt::Debug for ForeignFunction<S> {
     fn fmt(&self, fmt: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error>{
         fmt.write_str(&self.name)
     }
 }
 
-impl PartialEq for ForeignFunction {
-    fn eq(&self, other: &ForeignFunction) -> bool {
+impl <S> PartialEq for ForeignFunction<S> {
+    fn eq(&self, other: &ForeignFunction<S>) -> bool {
         self.name == other.name &&
         rc_to_usize(&self.function) == rc_to_usize(&other.function)
     }
 }
 
-impl Eq for ForeignFunction {}
+impl <S> Eq for ForeignFunction<S> {}
 
-impl ::std::hash::Hash for ForeignFunction {
+impl <S> ::std::hash::Hash for ForeignFunction<S> {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
         write_usize(rc_to_usize(&self.function), state);
     }

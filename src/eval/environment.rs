@@ -4,21 +4,21 @@ use std::cell::RefCell;
 
 use ::Value;
 
-pub type Env = Rc<RefCell<Environment>>;
-pub struct Environment {
-    parent: Option<Env>,
-    bindings: HashMap<String, Value>
+pub type Env<S> = Rc<RefCell<Environment<S>>>;
+pub struct Environment<S> {
+    parent: Option<Env<S>>,
+    bindings: HashMap<String, Value<S>>
 }
 
-impl Environment {
-    pub fn new() -> Environment {
+impl <S> Environment<S>  {
+    pub fn new() -> Environment<S> {
         Environment {
             parent: None,
             bindings: HashMap::new()
         }
     }
 
-    pub fn new_with_data(env: Env, bindings: HashMap<String, Value>) -> Env {
+    pub fn new_with_data(env: Env<S>, bindings: HashMap<String, Value<S>>) -> Env<S> {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
             bindings: bindings
@@ -33,7 +33,7 @@ impl Environment {
         self.with_value(name, |_| ()).is_some()
     }
 
-    pub fn get(&self, name: &str) -> Option<Value> {
+    pub fn get(&self, name: &str) -> Option<Value<S>> {
         if self.bindings.contains_key(name) {
             Some(self.bindings[name].clone())
         } else if let Some(ref p) = self.parent {
@@ -45,7 +45,7 @@ impl Environment {
     }
 
     pub fn with_value<F, R>(&self, name: &str, function: F) -> Option<R>
-    where F: FnOnce(&Value) -> R
+    where F: FnOnce(&Value<S>) -> R
     {
         if self.bindings.contains_key(name) {
             Some(function(&self.bindings[name]))
@@ -58,7 +58,7 @@ impl Environment {
     }
 
     pub fn with_value_mut<F, R>(&mut self, name: &str, function: F) -> Option<R>
-    where F: FnOnce(&mut Value) -> R
+    where F: FnOnce(&mut Value<S>) -> R
     {
         if self.bindings.contains_key(name) {
             Some(function(self.bindings.get_mut(name).unwrap()))
@@ -70,8 +70,8 @@ impl Environment {
         }
     }
 
-    pub fn insert_here<S: Into<String>>(&mut self, name: S, value: Value) -> Option<Value> {
-        self.bindings.insert(name.into(), value)
+    pub fn insert_here<N: Into<String>>(&mut self, name: N, values: Value<S>) -> Option<Value<S>> {
+        self.bindings.insert(name.into(), values)
     }
 }
 

@@ -1,13 +1,16 @@
+#![allow(mutable_transmutes)]
+
 use std::rc::Rc;
 
 pub mod tokenizer;
 mod eval;
 pub mod stdlib;
 mod error;
-pub mod util;
+//pub mod util;
 
 pub use tokenizer::parse;
 pub use eval::{
+    LoadedContext,
     Procedure,
     eval,
     apply,
@@ -26,36 +29,51 @@ macro_rules! gen_from {
         gen_from!($inx, $out, |i| i);
     };
     ($inx: ty, $out: path, $tr: expr) => {
-        impl From<$inx> for Value {
-            fn from(i: $inx) -> Value {
+        impl <S> From<$inx> for Value<S> {
+            fn from(i: $inx) -> Value<S> {
                 $out($tr(i))
             }
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Value {
-    List(Rc<Vec<Value>>),
+#[derive(Debug)]
+pub enum Value<S> {
+    List(Rc<Vec<Value<S>>>),
     String(Rc<String>),
     Float(f64),
     Int(i64),
     Bool(bool),
 
     Ident(Rc<String>),
-    ForeignFn(ForeignFunction),
-    Lambda(Procedure)
+    ForeignFn(ForeignFunction<S>),
+    Lambda(Procedure<S>)
 }
 
-impl Value {
-    pub fn new_string<S: Into<String>>(s: S) -> Value {
+impl <S> Value<S> {
+    pub fn new_string<N: Into<String>>(s: N) -> Value<S> {
         Value::String(Rc::new(s.into()))
     }
-    pub fn new_ident<S: Into<String>>(s: S) -> Value {
+    pub fn new_ident<N: Into<String>>(s: N) -> Value<S> {
         Value::Ident(Rc::new(s.into()))
     }
-    pub fn new_list(v: Vec<Value>) -> Value {
+    pub fn new_list(v: Vec<Value<S>>) -> Value<S> {
         Value::List(Rc::new(v))
+    }
+}
+
+impl <S> Clone for Value<S> {
+    fn clone(&self) -> Value<S> {
+        match self {
+            &Value::List(ref inner) => Value::List(inner.clone()),
+            &Value::String(ref inner) => Value::String(inner.clone()),
+            &Value::Float(f) => Value::Float(f),
+            &Value::Int(i) => Value::Int(i),
+            &Value::Bool(b) => Value::Bool(b),
+            &Value::Ident(ref inner) => Value::Ident(inner.clone()),
+            &Value::ForeignFn(ref inner) => Value::ForeignFn((*inner).clone()),
+            &Value::Lambda(ref inner) => Value::Lambda((*inner).clone())
+        }
     }
 }
 
@@ -75,22 +93,22 @@ gen_from!(bool, Value::Bool);
 
 gen_from!(String, Value::String, Rc::new);
 
-impl <T: Into<Value>> From<Vec<T>> for Value {
-    fn from(x: Vec<T>) -> Value {
+impl <S, T: Into<Value<S>>> From<Vec<T>> for Value<S> {
+    fn from(x: Vec<T>) -> Value<S> {
         Value::List(Rc::new(x.into_iter().map(|a| a.into()).collect()))
     }
 }
 
-impl <'a> From<&'a str> for Value {
-    fn from(x: &'a str) -> Value {
+impl <'a, S> From<&'a str> for Value<S> {
+    fn from(x: &'a str) -> Value<S> {
         let s: String = x.into();
-        let v: Value = s.into();
+        let v: Value<S> = s.into();
         v
     }
 }
 
-impl PartialEq for Value {
-    fn eq(&self, other: &Value) -> bool {
+impl <S> PartialEq for Value<S> {
+    fn eq(&self, other: &Value<S>) -> bool {
         use ::Value::*;
 
         match (self, other) {
@@ -109,9 +127,9 @@ impl PartialEq for Value {
     }
 }
 
-impl Eq for Value {}
+impl <S> Eq for Value<S> {}
 
-impl std::hash::Hash for Value {
+impl <S> std::hash::Hash for Value<S> {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
         use std::mem::transmute;
         match self {

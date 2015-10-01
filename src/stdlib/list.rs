@@ -1,17 +1,15 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Env, AresResult, AresError, free_fn, apply};
+use ::{Value, Env, AresResult, AresError, free_fn, LoadedContext};
 use super::util::expect_arity;
 
-pub fn build_list(args: &[Value],
-                  env: &Env,
-                  eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn build_list<S: 'static>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
-    let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
+    let vec = Rc::new(RefCell::new(Some(Vec::<Value<S>>::new())));
     let writer = vec.clone();
 
-    let func = move |values: &[Value]| -> AresResult<Value> {
+    let func = move |values: &[Value<S>]| -> AresResult<Value<S>, S> {
         match &mut *writer.borrow_mut() {
             &mut Some(ref mut adder) => {
                 let mut last = None;
@@ -35,22 +33,20 @@ pub fn build_list(args: &[Value],
         }
     };
 
-    let boxed_fn: Value = free_fn("add", func);
+    let boxed_fn: Value<S> = free_fn("add", func);
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
-    try!(eval(&Value::new_list(vec![evaluator, boxed_fn]), env));
+    try!(ctx.eval(&Value::new_list(vec![evaluator, boxed_fn])));
 
     let mut v = vec.borrow_mut();
     Ok(Value::new_list(v.take().unwrap()))
 }
 
-pub fn foreach(args: &[Value],
-               env: &Env,
-               eval: &Fn(&Value, &Env) -> AresResult<Value>) -> AresResult<Value> {
+pub fn foreach<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let should_be_list = args[0].clone();
-    let list: Vec<_> = match try!(eval(&should_be_list, env)) {
+    let list: Vec<_> = match try!(ctx.eval(&should_be_list)) {
         Value::List(ref l) => (&**l).clone(),
         other => return Err(AresError::UnexpectedType{
             value: other,
@@ -59,12 +55,12 @@ pub fn foreach(args: &[Value],
     };
 
     let func = args[1].clone();
-    let func = try!(eval(&func, env));
+    let func = try!(ctx.eval(&func));
 
     let mut count = 0;
     for element in list {
-        let singleton_slice: [Value; 1] = [element];
-        try!(apply(&func, &singleton_slice[..], env));
+        let singleton_slice: [Value<S>; 1] = [element];
+        try!(ctx.call(&func, &singleton_slice[..]));
         count += 1;
     }
 

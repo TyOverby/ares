@@ -6,7 +6,7 @@ use super::util::expect_arity;
 
 macro_rules! gen_is_type {
     ($name: ident, $p: ident) => {
-        pub fn $name(values: &[Value]) -> AresResult<Value> {
+        pub fn $name<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
             for item in values {
                 if let &Value::$p(_) = item {
                 } else {
@@ -27,7 +27,7 @@ gen_is_type!(is_ident, Ident);
 gen_is_type!(is_lambda, Lambda);
 gen_is_type!(is_foreign_fn, ForeignFn);
 
-pub fn is_executable(values: &[Value]) -> AresResult<Value> {
+pub fn is_executable<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     for item in values {
         match item {
             &Value::Lambda(_) => {},
@@ -40,7 +40,7 @@ pub fn is_executable(values: &[Value]) -> AresResult<Value> {
 }
 
 
-pub fn to_int(values: &[Value]) -> AresResult<Value> {
+pub fn to_int<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
 
     let res = match values.first().unwrap() {
@@ -57,7 +57,7 @@ pub fn to_int(values: &[Value]) -> AresResult<Value> {
     res
 }
 
-pub fn to_float(values: &[Value]) -> AresResult<Value> {
+pub fn to_float<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
 
     let res = match values.first().unwrap() {
@@ -72,7 +72,7 @@ pub fn to_float(values: &[Value]) -> AresResult<Value> {
     res
 }
 
-pub fn to_bool(values: &[Value]) -> AresResult<Value> {
+pub fn to_bool<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
 
     let res = match values.first().unwrap() {
@@ -103,14 +103,14 @@ pub fn to_bool(values: &[Value]) -> AresResult<Value> {
     res
 }
 
-pub fn to_string(values: &[Value]) -> AresResult<Value> {
+pub fn to_string<S>(values: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
     let first = values.first().unwrap();
     let s = to_string_helper(&first);
     Ok(Value::String(Rc::new(s)))
 }
 
-fn to_string_helper(value: &Value) -> String {
+fn to_string_helper<S>(value: &Value<S>) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),
@@ -121,7 +121,7 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Ident(ref i) => format!("'{}", i),
 
         &ref l@Value::List(_) => {
-            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>) {
+            fn build_buf<S>(cur: &Value<S>, buf: &mut String, seen: &mut HashSet<usize>) {
                 match cur {
                     &Value::List(ref l) => {
                         let ptr = rc_to_usize(l);

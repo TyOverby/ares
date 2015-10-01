@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding};
+use ::{Value, Environment, Procedure, AresResult, AresError, ParamBinding, LoadedContext};
 use super::util::expect_arity;
 
-pub fn equals(args: &[Value]) -> AresResult<Value> {
+pub fn equals<S>(args: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
     let first = &args[0];
 
@@ -17,13 +17,11 @@ pub fn equals(args: &[Value]) -> AresResult<Value> {
     Ok(Value::Bool(true))
 }
 
-pub fn lambda(args: &[Value],
-              env: &Rc<RefCell<Environment>>,
-              _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+pub fn lambda<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
     let param_names = match &args[0] {
         &Value::List(ref v) => {
-            let r: AresResult<Vec<String>> = v.iter().map(|n| {
+            let r: AresResult<Vec<String>, S> = v.iter().map(|n| {
                 match n {
                     &Value::Ident(ref s) => Ok((&**s).clone()),
                     &ref other => Err(AresError::UnexpectedType {
@@ -49,12 +47,10 @@ pub fn lambda(args: &[Value],
                 None,
                 Rc::new(bodies),
                 param_names,
-                env.clone())))
+                ctx.env().clone())))
 }
 
-pub fn define(args: &[Value],
-              env: &Rc<RefCell<Environment>>,
-              eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+pub fn define<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name: String = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
@@ -64,20 +60,18 @@ pub fn define(args: &[Value],
         }),
     };
 
-    if env.borrow().is_defined_at_this_level(&name) {
+    if ctx.env().borrow().is_defined_at_this_level(&name) {
         return Err(AresError::AlreadyDefined(name.into()))
     }
 
     let value = &args[1];
-    let result = try!(eval(value, env));
+    let result = try!(ctx.eval(value));
 
-    env.borrow_mut().insert_here(name, result.clone());
+    ctx.env().borrow_mut().insert_here(name, result.clone());
     Ok(result)
 }
 
-pub fn set(args: &[Value],
-              env: &Rc<RefCell<Environment>>,
-              eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+pub fn set<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
@@ -89,30 +83,26 @@ pub fn set(args: &[Value],
 
     let value = &args[1];
 
-    if !env.borrow().is_defined(&name) {
+    if !ctx.env().borrow().is_defined(&name) {
         return Err(AresError::UndefinedName(name.into()))
     }
 
-    let result = try!(eval(value, env));
-    env.borrow_mut().with_value_mut(&name, |v| *v = result.clone());
+    let result = try!(ctx.eval(value));
+    ctx.env().borrow_mut().with_value_mut(&name, |v| *v = result.clone());
     Ok(result)
 }
 
-pub fn quote(args: &[Value],
-              _env: &Rc<RefCell<Environment>>,
-              _eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+pub fn quote<S>(args: &[Value<S>]) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     Ok(args[0].clone())
 }
 
-pub fn cond(args: &[Value],
-            env: &Rc<RefCell<Environment>>,
-            eval: &Fn(&Value, &Rc<RefCell<Environment>>) -> AresResult<Value>) -> AresResult<Value> {
+pub fn cond<S>(args: &[Value<S>], ctx: &mut LoadedContext<S>) -> AresResult<Value<S>, S> {
     try!(expect_arity(args, |l| l == 3, "exactly 3"));
     let (cond, true_branch, false_branch) = (&args[0], &args[1], &args[2]);
-    match try!(eval(cond, env)) {
-        Value::Bool(true) => eval(true_branch, env),
-        Value::Bool(false) => eval(false_branch, env),
+    match try!(ctx.eval(cond)) {
+        Value::Bool(true) => ctx.eval(true_branch),
+        Value::Bool(false) => ctx.eval(false_branch),
         other => Err(AresError::UnexpectedType {
             value: other,
             expected: "Bool".into()
