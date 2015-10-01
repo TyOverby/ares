@@ -27,6 +27,23 @@ where S: Into<String>,
     })
 }
 
+pub fn user_fn<S, F>(name: S, func: F) -> Value
+where S: Into<String>,
+      F: Fn(&[Value], &mut LoadedContext) -> AresResult<Value> + 'static
+{
+    let closure = move |values: &[Value], ctx: &mut LoadedContext| {
+        let evaluated: Result<Vec<_>, _> = values.iter().map(|v| ctx.eval(v)).collect();
+        let evaluated = try!(evaluated);
+        func(&evaluated[..], ctx)
+    };
+
+    let boxed = Rc::new(closure);
+    Value::ForeignFn(ForeignFunction {
+        name: name.into(),
+        function: boxed
+    })
+}
+
 
 pub fn ast_fn<S, F>(name: S, func: F) -> Value
 where S: Into<String>,

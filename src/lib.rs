@@ -9,6 +9,7 @@ pub mod util;
 
 pub use parse::parse;
 pub use eval::{
+    user_fn,
     Procedure,
     eval,
     apply,
