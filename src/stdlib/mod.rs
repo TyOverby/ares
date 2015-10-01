@@ -6,6 +6,7 @@ pub mod core;
 pub mod types;
 pub mod list;
 pub mod logical;
+pub mod map;
 
 pub mod util {
     use ::{AresError, AresResult};
@@ -37,7 +38,13 @@ pub fn load_all(env: &Env) {
     load_list(env);
     load_math(env);
     load_arithmetic(env);
+    load_map(env);
     load_types(env);
+}
+
+pub fn load_map(env: &Env) {
+    let mut env = env.borrow_mut();
+    env.insert_here("hash-map", ast_fn("hash-map", self::map::hash_map));
 }
 
 pub fn load_logical(env: &Env) {

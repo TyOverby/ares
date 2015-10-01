@@ -48,7 +48,7 @@ fn convert_to_string() {
     eval_ok!("(->string 0)", "0");
     eval_ok!("(->string 1.5)", "1.5");
     eval_ok!("(->string \"hello\")", "hello");
-    eval_ok!("(->string (list 1 2 3))", "(1, 2, 3)");
+    eval_ok!("(->string (list 1 2 3))", "[1, 2, 3]");
 }
 
 #[test]

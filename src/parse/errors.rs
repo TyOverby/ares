@@ -10,6 +10,7 @@ pub enum ParseError {
     BadEscape(Position, String),
     MissingRightDelimiter(Close),
     ExtraRightDelimiter(Close, Position),
+    InvalidMapLiteral(Position),
 }
 
 use self::ParseError::*;
@@ -30,7 +31,8 @@ impl fmt::Display for ParseError {
                 write!(f, "Invalid escape sequence starting at {}: {}", pos, s),
             MissingRightDelimiter(c) => write!(f, "Missing right delimiter {}", c.to_char()),
             ExtraRightDelimiter(c, pos) =>
-                write!(f, "Extra right delimiter {} at {}", c.to_char(), pos)
+                write!(f, "Extra right delimiter {} at {}", c.to_char(), pos),
+            InvalidMapLiteral(pos) => write!(f, "Map literal at {} has an odd number of elements", pos),
         }
     }
 }
@@ -43,7 +45,8 @@ impl Error for ParseError {
             ConversionError(_, ref e) => e.description(),
             BadEscape(..) => "Bad escape sequence",
             MissingRightDelimiter(..) => "Missing right delimiter",
-            ExtraRightDelimiter(..) => "Extra right delimiter"
+            ExtraRightDelimiter(..) => "Extra right delimiter",
+            InvalidMapLiteral(..) => "Map literals require an even number of elements",
         }
     }
 }

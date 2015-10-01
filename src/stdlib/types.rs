@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use ::{Value, AresResult, AresError, rc_to_usize};
@@ -121,14 +121,14 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::Ident(ref i) => format!("'{}", i),
 
-        &ref l@Value::List(_) | &ref l@Value::Array(_) | &ref l@Value::Map(_) => {
-            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, is_list: bool) {
+        &ref l@Value::List(_) | &ref l@Value::Map(_) => {
+            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
                 let ptr = rc_to_usize(vec);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
                 } else {
                     seen.insert(ptr);
-                    buf.push_str(if is_list { "(" } else { "[" });
+                    buf.push_str("[");
                     for v in vec.iter() {
                         build_buf(v, buf, seen);
                         buf.push_str(", ");
@@ -136,10 +136,10 @@ fn to_string_helper(value: &Value) -> String {
                     // remove trailing comma ans space
                     buf.pop();
                     buf.pop();
-                    buf.push_str(if is_list { ")" } else { "]" });
+                    buf.push_str("]");
                 }
             }
-            fn format_pairs(m: &Rc<BTreeMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
+            fn format_pairs(m: &Rc<HashMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
                 let ptr = rc_to_usize(m);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
@@ -156,8 +156,7 @@ fn to_string_helper(value: &Value) -> String {
             }
             fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>) {
                 match cur {
-                    &Value::List(ref v) => format_singles(v, buf, seen, true),
-                    &Value::Array(ref v) => format_singles(v, buf, seen, false),
+                    &Value::List(ref v) => format_singles(v, buf, seen),
                     &Value::Map(ref m) => format_pairs(m, buf, seen),
                     other => buf.push_str(&to_string_helper(&other))
                 }

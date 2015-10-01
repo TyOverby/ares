@@ -84,10 +84,10 @@ impl Token {
         if let Some(tt) = match c {
             '(' => Some(Open(LParen)),
             ')' => Some(Close(RParen)),
-            '[' => Some(Open(LBrace)),
-            ']' => Some(Close(RBrace)),
-            '{' => Some(Open(LBracket)),
-            '}' => Some(Close(RBracket)),
+            '[' => Some(Open(LBracket)),
+            ']' => Some(Close(RBracket)),
+            '{' => Some(Open(LBrace)),
+            '}' => Some(Close(RBrace)),
             _ => None
         } {
             Some(Token { tt: tt, start: start, end: start.next() })
@@ -352,8 +352,8 @@ fn is_number_c(c: char) -> bool {
 
 #[inline]
 fn is_symbol_c(c: char) -> bool {
-    c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
-        (c >= '#' && c <= '\'')
+    (c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
+        (c >= '#' && c <= '\'')) && !is_delimiter_c(c)
 }
 
 #[inline]

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use ::Value;
 
 mod errors;
+mod util;
 pub mod tokens;
 
 use parse::tokens::{TokenType, Token, Open, TokenIter};
@@ -11,23 +12,47 @@ use parse::errors::ParseError::*;
 
 fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                      -> Result<Value, ParseError> {
-    use self::tokens::TokenType::*;
+    use self::tokens::TokenType;
     match tok.tt {
-        Number(s) => Ok(try!(s.parse().map(Value::Int)
-                                 .or_else(|_| s.parse().map(Value::Float))
-                                 .map_err(|e| ConversionError(s, Box::new(e))))),
-        Symbol(s) => Ok(s.parse().map(Value::Bool)
-                        .unwrap_or(Value::Ident(Rc::new(s)))),
-        String(s)     => Ok(Value::String(Rc::new(s))),
-        Quote         => Ok({
+        TokenType::Number(s) => Ok(try!(s.parse().map(Value::Int)
+                                        .or_else(|_| s.parse().map(Value::Float))
+                                        .map_err(|e| ConversionError(s, Box::new(e))))),
+        TokenType::Symbol(s) => Ok(s.parse().map(Value::Bool)
+                                   .unwrap_or(Value::Ident(Rc::new(s)))),
+        TokenType::String(s)     => Ok(Value::String(Rc::new(s))),
+        TokenType::Quote         => Ok({
             let quoted = try!(parse_one_expr(tok_stream));
             Value::new_list(match quoted {
                 None => vec![Value::new_ident("quote")],
                 Some(v) => vec![Value::new_ident("quote"), v]
             })
         }),
-        Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),
-        Open(open)    => Ok(Value::new_list(try!(parse_delimited(tok_stream, open))))
+        TokenType::Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),
+        TokenType::Open(open)    => {
+            let mut values = try!(parse_delimited(tok_stream, open));
+            match open {
+                Open::LParen => Ok(Value::new_list(values)),
+                Open::LBracket => if values.iter().all(util::immediate_value) {
+                    Ok(Value::new_list(values)) 
+                } else {
+                    values.insert(0, Value::new_ident("list"));
+                    Ok(Value::new_list(vec![Value::new_ident("quote"), Value::new_list(values)]))
+                },
+                Open::LBrace => {
+                    if values.len() % 2 == 1 {
+                        return Err(InvalidMapLiteral(tok.start))
+                    }
+                    if values.iter().all(util::immediate_value) {
+                        let (keys, values) : (Vec<_>, _) = values.into_iter().enumerate().partition(|&(i, _)| i % 2 == 0);
+                        let m = keys.into_iter().map(|(_, k)| k).zip(values.into_iter().map(|(_, v)| v)).collect();
+                        Ok(Value::Map(Rc::new(m)))
+                    } else {
+                        values.insert(0, Value::new_ident("hash-map"));
+                        Ok(Value::new_list(values))
+                    }
+                }
+            }
+        }
     }
 }
 
