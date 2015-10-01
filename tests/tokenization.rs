@@ -1,5 +1,5 @@
 extern crate ares;
-use ares::tokenizer::parse;
+use ares::parse::parse;
 use ares::Value;
 
 macro_rules! parse_fail {
@@ -26,9 +26,9 @@ macro_rules! parse_ok {
 
 #[test]
 fn parentheses() {
-    parse_fail!("(x y(", "Missing right parenthesis");
-    parse_fail!("(x y) ()) z", "Extra right parenthesis at line 1, column 9");
-    parse_fail!("(x (y (z) \"())))))\"", "Missing right parenthesis");
+    parse_fail!("(x y(", "Missing right delimiter )");
+    parse_fail!("(x y) ()) z", "Extra right delimiter ) at line 1, column 9");
+    parse_fail!("(x (y (z) \"())))))\"", "Missing right delimiter )");
     parse_ok!("(x (y (z \"())))\")))");
 }
 
@@ -79,6 +79,6 @@ fn quote()
     parse_ok!("(foo '(1 2))");
     parse_ok!("(foo '(1 (2 3) \"df)\"))");
     // these are admittedly weird error messages.
-    parse_fail!("(foo ')", "Extra right parenthesis at line 1, column 7");
-    parse_fail!("(foo '", "Missing right parenthesis");
+    parse_fail!("(foo ')", "Extra right delimiter ) at line 1, column 7");
+    parse_fail!("(foo '", "Missing right delimiter )");
 }
