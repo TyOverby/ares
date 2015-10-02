@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use ::{Value, Procedure, AresResult, AresError, ParamBinding, LoadedContext};
+use ::{Value, Procedure, AresResult, AresError, ParamBinding, LoadedContext, State};
 use super::util::expect_arity;
 
 pub fn equals(args: &[Value]) -> AresResult<Value> {
@@ -15,7 +15,7 @@ pub fn equals(args: &[Value]) -> AresResult<Value> {
     Ok(Value::Bool(true))
 }
 
-pub fn lambda(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
     let param_names = match &args[0] {
         &Value::List(ref v) => {
@@ -48,7 +48,7 @@ pub fn lambda(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
                 ctx.env().clone())))
 }
 
-pub fn define(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name: String = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
@@ -69,7 +69,7 @@ pub fn define(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
     Ok(result)
 }
 
-pub fn set(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
         &Value::Ident(ref s) => (**s).clone(),
@@ -90,12 +90,12 @@ pub fn set(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
     Ok(result)
 }
 
-pub fn quote(args: &[Value], _ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn quote<S: State + ?Sized>(args: &[Value], _ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     Ok(args[0].clone())
 }
 
-pub fn cond(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 3, "exactly 3"));
     let (cond, true_branch, false_branch) = (&args[0], &args[1], &args[2]);
     match try!(ctx.eval(cond)) {

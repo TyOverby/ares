@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use ::{Value, AresResult, AresError, LoadedContext};
+use ::{Value, AresResult, AresError, LoadedContext, State};
 
-pub fn hash_map(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn hash_map<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     if args.len() % 2 == 1 {
         return Err(AresError::UnexpectedArity {
             found: args.len() as u16,

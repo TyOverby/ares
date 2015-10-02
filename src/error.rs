@@ -24,6 +24,7 @@ pub enum AresError {
     NoNameSet,
     NoValueSet,
 
+    InvalidForeignFunctionState,
 
     AlreadyDefined(String),
     NoNameDefine,

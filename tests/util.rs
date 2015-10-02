@@ -25,6 +25,7 @@ macro_rules! eval_err {
 
 pub fn e(program: &str) -> AresResult<Value> {
     let mut ctx = Context::new();
-    let mut ctx = ctx.load();
+    let mut dummy = ();
+    let mut ctx = ctx.load(&mut dummy);
     ctx.eval_str(program)
 }

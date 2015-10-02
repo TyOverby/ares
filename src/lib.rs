@@ -1,26 +1,24 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 
-pub mod parse;
+mod parse;
 mod eval;
 pub mod stdlib;
 mod error;
-pub mod util;
 
 pub use parse::parse;
 pub use eval::{
     user_fn,
+    free_fn,
+    ast_fn,
     Procedure,
-    eval,
-    apply,
     ForeignFunction,
     Env,
     Environment,
     ParamBinding,
-    free_fn,
-    ast_fn,
     Context,
-    LoadedContext
+    LoadedContext,
+    State,
 };
 pub use error::{AresError, AresResult};
 
@@ -47,7 +45,7 @@ pub enum Value {
     Map(Rc<HashMap<Value, Value>>),
 
     Ident(Rc<String>),
-    ForeignFn(ForeignFunction),
+    ForeignFn(ForeignFunction<()>),
     Lambda(Procedure)
 }
 
