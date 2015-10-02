@@ -3,16 +3,15 @@ use super::{Value, AresError, AresResult};
 pub use self::environment::{Env, Environment};
 pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn, user_fn};
 pub use self::procedure::{Procedure, ParamBinding};
-pub use self::context::{Context, LoadedContext};
+pub use self::context::{Context, LoadedContext, State};
 
 mod environment;
 mod foreign_function;
 mod procedure;
 mod context;
 
-pub fn eval(value: &Value, ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     match value {
-
         &Value::Ident(ref ident) => {
             match ctx.env().borrow().get(&ident) {
                 Some(v) => Ok(v),
@@ -46,7 +45,7 @@ pub fn eval(value: &Value, ctx: &mut LoadedContext) -> AresResult<Value> {
     }
 }
 
-pub fn apply<'a>(func: &Value, args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value>
+pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value>
 {
     match func.clone() {
         Value::Lambda(procedure) => {
@@ -61,7 +60,8 @@ pub fn apply<'a>(func: &Value, args: &[Value], ctx: &mut LoadedContext) -> AresR
             })
         }
         Value::ForeignFn(ff) => {
-            (ff.function)(args, ctx)
+            let corrected = try!(ff.correct::<S>().or(Err(AresError::InvalidForeignFunctionState)));
+            (corrected.function)(args, ctx)
         }
         other => Err(AresError::UnexecutableValue(other.clone()))
     }

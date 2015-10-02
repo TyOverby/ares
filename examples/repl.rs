@@ -8,18 +8,14 @@ use term_painter::ToStyle;
 
 fn main() {
     let mut ctx = ares::Context::new();
-    let mut ctx = ctx.load();
+    let mut dummy = ();
+    let mut ctx = ctx.load(&mut dummy);
 
     let stdin = io::stdin();
     for line in stdin.lock().lines().take_while(|a| a.is_ok()).filter_map(|a| a.ok()) {
         match ctx.eval_str(&line) {
-            Ok(v) => {
-                println!("{:?}", Green.paint(v))
-            }
-            Err(e) => {
-                println!("err: {:?}", Red.paint(e));
-                break;
-            }
+            Ok(v)  => println!("{:?}", Green.paint(v)),
+            Err(e) => println!("{:?}", Red.paint(e))
         }
     }
 }

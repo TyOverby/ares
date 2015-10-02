@@ -1,7 +1,7 @@
-use ::{Value, AresResult, AresError, free_fn, LoadedContext};
+use ::{Value, AresResult, AresError, free_fn, LoadedContext, State};
 use super::util::expect_arity;
 
-pub fn build_list(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     use std::rc::Rc;
     use std::cell::RefCell;
 
@@ -33,7 +33,7 @@ pub fn build_list(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> 
         }
     };
 
-    let boxed_fn: Value = free_fn("add", func);
+    let boxed_fn: Value = Value::ForeignFn(free_fn::<S, _, _>("add", func).erase());
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
@@ -43,7 +43,7 @@ pub fn build_list(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> 
     Ok(Value::new_list(v.take().unwrap()))
 }
 
-pub fn foreach(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn foreach<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let should_be_list = args[0].clone();
     let list: Vec<_> = match try!(ctx.eval(&should_be_list)) {

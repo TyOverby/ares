@@ -1,6 +1,6 @@
-use ::{Value, AresResult, AresError, LoadedContext};
+use ::{Value, AresResult, AresError, LoadedContext, State};
 
-pub fn and(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn and<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     for value in args {
         match try!(ctx.eval(value)) {
             Value::Bool(true) => { }
@@ -14,7 +14,7 @@ pub fn and(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
     Ok(Value::Bool(true))
 }
 
-pub fn or(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn or<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     for value in args {
         match try!(ctx.eval(value)) {
             Value::Bool(true) => return Ok(Value::Bool(true)),
@@ -28,7 +28,7 @@ pub fn or(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
     Ok(Value::Bool(false))
 }
 
-pub fn xor(args: &[Value], ctx: &mut LoadedContext) -> AresResult<Value> {
+pub fn xor<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     let mut found_true = false;
     let mut found_false = false;
     for value in args {
