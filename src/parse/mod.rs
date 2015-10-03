@@ -22,21 +22,21 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
         TokenType::String(s)     => Ok(Value::String(Rc::new(s))),
         TokenType::Quote         => Ok({
             let quoted = try!(parse_one_expr(tok_stream));
-            Value::new_list(match quoted {
-                None => vec![Value::new_ident("quote")],
-                Some(v) => vec![Value::new_ident("quote"), v]
+            Value::list(match quoted {
+                None => vec![Value::ident("quote")],
+                Some(v) => vec![Value::ident("quote"), v]
             })
         }),
         TokenType::Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),
         TokenType::Open(open)    => {
             let mut values = try!(parse_delimited(tok_stream, open));
             match open {
-                Open::LParen => Ok(Value::new_list(values)),
+                Open::LParen => Ok(Value::list(values)),
                 Open::LBracket => if values.iter().all(util::immediate_value) {
-                    Ok(Value::new_list(values)) 
+                    Ok(Value::list(values))
                 } else {
-                    values.insert(0, Value::new_ident("list"));
-                    Ok(Value::new_list(vec![Value::new_ident("quote"), Value::new_list(values)]))
+                    values.insert(0, Value::ident("list"));
+                    Ok(Value::list(vec![Value::ident("quote"), Value::list(values)]))
                 },
                 Open::LBrace => {
                     if values.len() % 2 == 1 {
@@ -47,8 +47,8 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                         let m = keys.into_iter().map(|(_, k)| k).zip(values.into_iter().map(|(_, v)| v)).collect();
                         Ok(Value::Map(Rc::new(m)))
                     } else {
-                        values.insert(0, Value::new_ident("hash-map"));
-                        Ok(Value::new_list(values))
+                        values.insert(0, Value::ident("hash-map"));
+                        Ok(Value::list(values))
                     }
                 }
             }

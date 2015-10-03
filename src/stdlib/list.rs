@@ -37,10 +37,10 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
-    try!(ctx.eval(&Value::new_list(vec![evaluator, boxed_fn])));
+    try!(ctx.eval(&Value::list(vec![evaluator, boxed_fn])));
 
     let mut v = vec.borrow_mut();
-    Ok(Value::new_list(v.take().unwrap()))
+    Ok(Value::list(v.take().unwrap()))
 }
 
 pub fn foreach<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {

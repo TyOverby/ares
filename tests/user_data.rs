@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 extern crate ares;
 
 #[macro_use]
@@ -11,7 +13,7 @@ fn user_data() {
     ctx.set_fn("ret-tuple",
                user_fn(
                    "ret-tuple",
-                   |_, _| Ok(Value::new_user_data((1u32, "hi")))));
+                   |_, _| Ok(Value::user_data((1u32, "hi")))));
 
     let mut dummy = ();
     let mut ctx = ctx.load(&mut dummy);

@@ -53,19 +53,19 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn new_string<S: Into<String>>(s: S) -> Value {
+    pub fn string<S: Into<String>>(s: S) -> Value {
         Value::String(Rc::new(s.into()))
     }
 
-    pub fn new_ident<S: Into<String>>(s: S) -> Value {
+    pub fn ident<S: Into<String>>(s: S) -> Value {
         Value::Ident(Rc::new(s.into()))
     }
 
-    pub fn new_list(v: Vec<Value>) -> Value {
+    pub fn list(v: Vec<Value>) -> Value {
         Value::List(Rc::new(v))
     }
 
-    pub fn new_user_data<T: Any>(t: T) -> Value {
+    pub fn user_data<T: Any>(t: T) -> Value {
         Value::UserData(Rc::new(t) as Rc<Any>)
     }
 }
