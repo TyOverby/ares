@@ -4,9 +4,16 @@ use super::super::Value::*;
 pub fn immediate_value(v: &Value) -> bool {
     match v {
         &Map(ref m) => m.iter().all(|(k, v)| immediate_value(k) && immediate_value(v)),
-        &List(ref vec) => vec.len() >= 1 && vec[0] == Value::new_ident("quote"),
+        &List(ref vec) => vec.len() == 2 && vec[0] == Value::new_ident("quote"),
         &Ident(_) => false,
         _ => true
+    }
+}
+
+pub fn unquote(v: Value) -> Value {
+    match v {
+        List(vec) => vec[1].clone(),
+        v => v
     }
 }
 
