@@ -1,4 +1,5 @@
 extern crate ares;
+use std::collections::HashMap;
 use ares::parse;
 use ares::Value;
 
@@ -81,4 +82,23 @@ fn quote()
     // these are admittedly weird error messages.
     parse_fail!("(foo ')", "Extra right delimiter ) at line 1, column 7");
     parse_fail!("(foo '", "Missing right delimiter )");
+}
+
+
+#[test]
+fn mapliteral()
+{
+    parse_fail!("{1 2 3}", "Map literal at line 1, column 1 is malformed");
+    parse_fail!("{1 2 {} 4}", "Map literal at line 1, column 1 is malformed");
+    parse_fail!("{1 2 [1 2] 4}", "Map literal at line 1, column 1 is malformed");
+    parse_ok!("{}", HashMap::<Value, Value>::new());
+    parse_ok!("{\"1\" 2 'a 4 1.0 {1 2}}");
+}
+
+
+#[test]
+fn listliteral()
+{
+    parse_ok!("[1 2]");
+    parse_ok!("[1 {1 2}]");
 }

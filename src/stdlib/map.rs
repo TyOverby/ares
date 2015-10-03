@@ -14,7 +14,14 @@ pub fn hash_map<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
     let mut key = None;
     for arg in args {
         match key {
-            None => key = Some(try!(ctx.eval(arg))),
+            None => match try!(ctx.eval(arg)) {
+                v@Value::List(_) | v@Value::Map(_) => {
+                    return Err(AresError::UnexpectedType {
+                        value: v, expected: "a hashable type".to_owned()
+                    })
+                },
+                v => key = Some(v)
+            },
             Some(k) => {
                 let val = try!(ctx.eval(arg));
                 m.insert(k, val);
