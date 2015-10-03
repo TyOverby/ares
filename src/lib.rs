@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::any::Any;
 
 mod parse;
 mod eval;
@@ -46,18 +47,26 @@ pub enum Value {
 
     Ident(Rc<String>),
     ForeignFn(ForeignFunction<()>),
-    Lambda(Procedure)
+    Lambda(Procedure),
+
+    UserData(Rc<Any>)
 }
 
 impl Value {
     pub fn new_string<S: Into<String>>(s: S) -> Value {
         Value::String(Rc::new(s.into()))
     }
+
     pub fn new_ident<S: Into<String>>(s: S) -> Value {
         Value::Ident(Rc::new(s.into()))
     }
+
     pub fn new_list(v: Vec<Value>) -> Value {
         Value::List(Rc::new(v))
+    }
+
+    pub fn new_user_data<T: Any>(t: T) -> Value {
+        Value::UserData(Rc::new(t) as Rc<Any>)
     }
 }
 
@@ -113,6 +122,8 @@ impl PartialEq for Value {
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
             (&Map(ref m1), &Map(ref m2)) => m1 == m2,
+            (&UserData(ref u1), &UserData(ref u2)) =>
+                rc_to_usize(u1) == rc_to_usize(u2),
             _ => false
         }
     }
@@ -132,6 +143,7 @@ impl std::hash::Hash for Value {
             &Value::Ident(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
+            &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),
             &Value::Map(_) => unimplemented!()  // hashmap not hashable.
         }
     }

@@ -118,7 +118,9 @@ fn to_string_helper(value: &Value) -> String {
         &Value::String(ref s) => (&**s).clone(),
         &Value::Bool(b) => format!("{}", b),
         &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
-        &Value::Lambda(ref l) => format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        &Value::Lambda(ref l) =>
+            format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
         &Value::Ident(ref i) => format!("'{}", i),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {

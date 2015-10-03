@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use ::Value;
 use ::parse::ParseError;
 
@@ -30,6 +32,14 @@ pub enum AresError {
     NoNameDefine,
     NoValueDefine,
     MultiValueDefine,
+
+    UserError(Box<Any>)
+}
+
+impl AresError {
+    pub fn user_error<T: Any>(t: T) -> AresError {
+        AresError::UserError(Box::new(t) as Box<Any>)
+    }
 }
 
 impl From<ParseError> for AresError {
