@@ -39,6 +39,11 @@ impl <S: State + ?Sized> Context<S> {
         }
     }
 
+    pub fn with_debug(mut self) -> Context<S> {
+        stdlib::load_debug(&mut self);
+        self
+    }
+
     pub fn load<'a>(&'a mut self, state: &'a mut S) -> LoadedContext<'a, S> {
         LoadedContext {
             ctx: self,
