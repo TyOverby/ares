@@ -1,6 +1,17 @@
 pub use self::rc_slice::RcSlice;
+use std::io::{self, BufRead, Write};
+
+pub fn prompt<P: ?Sized + AsRef<str>>(prompt: &P) -> Option<String> {
+    let mut res = String::new();
+    print!("{}", prompt.as_ref());
+    let flushed = io::stdout().flush();
+    let read = io::stdin().read_line(&mut res).map(|_|());
+    flushed.or(read).map(|_| res).ok()
+}
+
 
 pub mod rc_slice {
+    #![allow(unused)]
     use std::rc::Rc;
     use ::{Value, rc_to_usize};
 

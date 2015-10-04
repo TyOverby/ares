@@ -7,6 +7,7 @@ pub mod types;
 pub mod list;
 pub mod logical;
 pub mod map;
+pub mod debugger;
 
 pub mod util {
     use ::{AresError, AresResult};
@@ -44,6 +45,10 @@ pub fn load_all<S: State + ?Sized>(ctx: &mut Context<S>) {
     load_arithmetic(ctx);
     load_map(ctx);
     load_types(ctx);
+}
+
+pub fn load_debug<S: State + ?Sized>(ctx: &mut Context<S>) {
+    ctx.set_fn("debugger", ast_fn("debugger", self::debugger::debugger));
 }
 
 pub fn load_map<S: State + ?Sized>(ctx: &mut Context<S>) {

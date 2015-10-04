@@ -32,7 +32,7 @@ impl fmt::Display for ParseError {
             MissingRightDelimiter(c) => write!(f, "Missing right delimiter {}", c.to_char()),
             ExtraRightDelimiter(c, pos) =>
                 write!(f, "Extra right delimiter {} at {}", c.to_char(), pos),
-            InvalidMapLiteral(pos) => write!(f, "Map literal at {} has an odd number of elements", pos),
+            InvalidMapLiteral(pos) => write!(f, "Map literal at {} is malformed", pos),
         }
     }
 }

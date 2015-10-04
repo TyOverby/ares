@@ -33,10 +33,11 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
             match open {
                 Open::LParen => Ok(Value::list(values)),
                 Open::LBracket => if values.iter().all(util::immediate_value) {
-                    Ok(Value::list(values))
+                    let values = values.into_iter().map(util::unquote).collect();
+                    Ok(Value::list(vec![Value::ident("quote"), Value::list(values)]))
                 } else {
                     values.insert(0, Value::ident("list"));
-                    Ok(Value::list(vec![Value::ident("quote"), Value::list(values)]))
+                    Ok(Value::list(values))
                 },
                 Open::LBrace => {
                     if values.len() % 2 == 1 {
@@ -44,8 +45,12 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                     }
                     if values.iter().all(util::immediate_value) {
                         let (keys, values) : (Vec<_>, _) = values.into_iter().enumerate().partition(|&(i, _)| i % 2 == 0);
-                        let m = keys.into_iter().map(|(_, k)| k).zip(values.into_iter().map(|(_, v)| v)).collect();
-                        Ok(Value::Map(Rc::new(m)))
+                        if keys.iter().all(|&(_, ref k)| util::can_be_hash_key(k)) {
+                            let m = keys.into_iter().map(|(_, k)| util::unquote(k)).zip(values.into_iter().map(|(_, v)| util::unquote(v))).collect();
+                            Ok(Value::Map(Rc::new(m)))
+                        } else {
+                            Err(InvalidMapLiteral(tok.start))
+                        }
                     } else {
                         values.insert(0, Value::ident("hash-map"));
                         Ok(Value::list(values))
