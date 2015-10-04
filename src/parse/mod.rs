@@ -30,7 +30,6 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
         TokenType::Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),
         TokenType::Open(open)    => {
             let mut values = try!(parse_delimited(tok_stream, open));
-            println!("values: {:?}, delimited by {:?}", values, open);
             match open {
                 Open::LParen => Ok(Value::new_list(values)),
                 Open::LBracket => if values.iter().all(util::immediate_value) {
