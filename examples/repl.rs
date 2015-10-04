@@ -1,8 +1,6 @@
 extern crate ares;
 extern crate term_painter;
 
-use std::io::{self, BufRead, Write};
-
 use term_painter::Color::*;
 use term_painter::ToStyle;
 
