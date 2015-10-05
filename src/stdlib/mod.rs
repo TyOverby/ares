@@ -78,6 +78,7 @@ pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
     eval_into(&format!("(define map {})", self::list::MAP), ctx);
     eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT), ctx);
     eval_into(&format!("(define filter {})", self::list::FILTER), ctx);
+    eval_into(&format!("(define flatten {})", self::list::FLATTEN), ctx);
     eval_into(&format!("(define concat {})", self::list::CONCAT), ctx);
 
 }

@@ -7,10 +7,13 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
 
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     let vec = Rc::new(RefCell::new(Some(Vec::<Value>::new())));
-    let writer = vec.clone();
+    let writer1 = vec.clone();
+    let writer2 = vec.clone();
 
-    let func = move |values: &[Value]| -> AresResult<Value> {
-        match &mut *writer.borrow_mut() {
+    let push_individuals = move |values: &[Value]| -> AresResult<Value> {
+        try!(expect_arity(values, |l| l >= 1, "at least 1"));
+
+        match &mut *writer1.borrow_mut() {
             &mut Some(ref mut adder) => {
                 let mut last = None;
                 for value in values {
@@ -18,26 +21,45 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                     last = Some(value);
                 }
 
-                match last {
-                    Some(v) => Ok(v.clone()),
-                    None => Err(AresError::UnexpectedArity {
-                        found: 0,
-                        expected: "at least 1".to_string()
-                    })
-                }
+                Ok(last.unwrap().clone()) // safe because of the expect_arity
             },
             &mut None => {
-                let err_msg = "build-list adder called after completion of build-list.";
+                let err_msg = "build-list `add`er called after completion of build-list.";
                 return Err(AresError::InvalidState(err_msg.to_string()))
            }
         }
     };
 
-    let boxed_fn: Value = Value::ForeignFn(free_fn::<S, _, _>("add", func).erase());
+    let push_list_values = move |values: &[Value]| -> AresResult<Value> {
+        try!(expect_arity(values, |l| l >= 1, "at least 1"));
+
+        match &mut *writer2.borrow_mut() {
+            &mut Some(ref mut adder) => {
+                let mut last = None;
+                for value in values {
+                    if let &Value::List(ref list) = value {
+                        for element in &***list {
+                            adder.push(element.clone());
+                        }
+                    }
+                    last = Some(value);
+                }
+
+                Ok(last.unwrap().clone()) // safe because of the expect_arity
+            },
+            &mut None => {
+                let err_msg = "build-list `add`er called after completion of build-list.";
+                return Err(AresError::InvalidState(err_msg.to_string()))
+           }
+        }
+    };
+
+    let boxed_push_indiv: Value = Value::ForeignFn(free_fn::<S, _, _>("add", push_individuals).erase());
+    let boxed_push_list: Value = Value::ForeignFn(free_fn::<S, _, _>("add-all", push_list_values).erase());
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
-    try!(ctx.eval(&Value::list(vec![evaluator, boxed_fn])));
+    try!(ctx.eval(&Value::list(vec![evaluator, boxed_push_indiv, boxed_push_list])));
 
     let mut v = vec.borrow_mut();
     Ok(Value::list(v.take().unwrap()))
@@ -92,10 +114,14 @@ pub static FILTER: &'static str =
                     (push element)
                     false))))))";
 
+pub static FLATTEN: &'static str =
+"(lambda (list-of-lists)
+    (build-list
+        (lambda (push push-all)
+            (for-each list-of-lists (lambda (sub-list)
+                (push-all sub-list))))))";
+
 pub static CONCAT: &'static str =
 "(lambda lists
-    (build-list
-        (lambda (push)
-            (for-each lists (lambda (list)
-                (for-each list (lambda (element)
-                    (push element))))))))";
+    (flatten lists))";
+
