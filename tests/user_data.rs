@@ -5,7 +5,7 @@ extern crate ares;
 #[macro_use]
 mod util;
 
-use ares::*;
+use ares::{Context, Value, user_fn, AresError};
 
 #[test]
 fn user_data() {
