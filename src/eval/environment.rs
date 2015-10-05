@@ -25,6 +25,23 @@ impl Environment {
         }))
     }
 
+    fn defined_helper(&self, values: &mut HashMap<String, (u32, Value)>, depth: u32) {
+        for (k, v) in &self.bindings {
+            if !values.contains_key(k) {
+                values.insert(k.clone(), (depth, v.clone()));
+            }
+        }
+        if let &Some(ref parent) = &self.parent {
+            parent.borrow().defined_helper(values, depth + 1);
+        }
+    }
+
+    pub fn all_defined(&self) -> HashMap<String, (u32, Value)> {
+        let mut defined = HashMap::new();
+        self.defined_helper(&mut defined, 0);
+        defined
+    }
+
     pub fn is_defined_at_this_level(&self, name: &str) -> bool {
         self.bindings.contains_key(name)
     }
