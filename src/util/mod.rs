@@ -2,11 +2,17 @@ pub use self::rc_slice::RcSlice;
 use std::io::{self, BufRead, Write};
 
 pub fn prompt<P: ?Sized + AsRef<str>>(prompt: &P) -> Option<String> {
-    let mut res = String::new();
     print!("{}", prompt.as_ref());
     let flushed = io::stdout().flush();
-    let read = io::stdin().read_line(&mut res).map(|_|());
-    flushed.or(read).map(|_| res).ok()
+
+    let mut res = String::new();
+    let read = io::stdin().read_line(&mut res);
+
+    match (flushed, read) {
+        (Ok(_), Ok(0)) => None,
+        (Ok(_), Ok(_)) => Some(res),
+        _ => None,
+    }
 }
 
 
