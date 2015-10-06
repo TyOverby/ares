@@ -75,7 +75,7 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
 pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
     {
         ctx.set_fn("build-list", ast_fn("build-list", self::list::build_list));
-        ctx.set_fn("for-each", ast_fn("for-each", self::list::foreach));
+        ctx.set_fn("for-each", user_fn("for-each", self::list::foreach));
     }
     eval_into(&format!("(define list {})", self::list::LIST), ctx);
     eval_into(&format!("(define map {})", self::list::MAP), ctx);

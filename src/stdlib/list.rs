@@ -67,17 +67,15 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
 
 pub fn foreach<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
-    let should_be_list = args[0].clone();
-    let list: Vec<_> = match try!(ctx.eval(&should_be_list)) {
+    let list: Vec<_> = match args[0] {
         Value::List(ref l) => (&**l).clone(),
-        other => return Err(AresError::UnexpectedType{
-            value: other,
+        ref other => return Err(AresError::UnexpectedType{
+            value: other.clone(),
             expected: "List".into()
-        }),
+        })
     };
 
-    let func = args[1].clone();
-    let func = try!(ctx.eval(&func));
+    let ref func = args[1];
 
     let mut count = 0;
     for element in list {
