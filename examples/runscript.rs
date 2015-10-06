@@ -6,6 +6,7 @@ use std::fmt::Write;
 
 fn main() {
     let mut ctx = Context::new().with_debug();
+
     ctx.set_fn("print", free_fn("print", |args| {
         let mut buf = String::new();
         write!(buf, "{:?}", args);

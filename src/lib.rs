@@ -7,6 +7,7 @@ mod eval;
 pub mod stdlib;
 mod error;
 pub mod util;
+pub mod intern;
 
 pub use parse::parse;
 pub use eval::{
