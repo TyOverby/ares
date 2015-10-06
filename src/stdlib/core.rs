@@ -15,6 +15,24 @@ pub fn equals(args: &[Value]) -> AresResult<Value> {
     Ok(Value::Bool(true))
 }
 
+pub fn eval<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    ctx.eval(&args[0])
+}
+
+pub fn apply<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l == 2, "exactly 2"));
+    let func = &args[0];
+    let arguments = &args[1];
+    match arguments {
+        &Value::List(ref lst) => ctx.call(func , lst),
+        other => Err(AresError::UnexpectedType {
+            value: other.clone(),
+            expected: "List".into()
+        })
+    }
+}
+
 pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
     let param_names = match &args[0] {

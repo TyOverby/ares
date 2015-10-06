@@ -1,4 +1,4 @@
-use ::{free_fn, ast_fn, Context, State};
+use ::{user_fn, free_fn, ast_fn, Context, State};
 
 pub mod arithmetic;
 pub mod math;
@@ -62,6 +62,8 @@ pub fn load_logical<S: State + ?Sized>(ctx: &mut Context<S>) {
 }
 
 pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
+    ctx.set_fn("eval", user_fn("eval", self::core::eval));
+    ctx.set_fn("apply", user_fn("apply", self::core::apply));
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
     ctx.set_fn("if", ast_fn("if", self::core::cond));
     ctx.set_fn("set", ast_fn("set", self::core::set));
