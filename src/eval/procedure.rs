@@ -4,11 +4,12 @@ use std::collections::HashMap;
 use ::{Value, rc_to_usize, write_usize};
 
 pub use super::environment::{Env, Environment};
+use ::intern::Symbol;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum ParamBinding {
-    SingleIdent(String),
-    ParamList(Vec<String>)
+    SingleIdent(Symbol),
+    ParamList(Vec<Symbol>)
 }
 
 #[derive(Clone)]

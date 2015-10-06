@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::cell::RefCell;
 use ::{Value, AresResult, LoadedContext, State, user_fn, free_fn, Environment};
 use ::util::prompt;
+use ::intern::Symbol;
 use super::util::expect_arity;
 
 pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
@@ -19,7 +20,7 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
 
     let debugger_env = move |values: &[Value], ctx: &mut LoadedContext<S>| -> AresResult<Value> {
         try!(expect_arity(values, |l| l == 0, "exactly 0"));
-        let mut list: Vec<(String, (u32, Value))> = ctx.env().borrow().all_defined().into_iter().collect();
+        let mut list: Vec<(Symbol, (u32, Value))> = ctx.env().borrow().all_defined().into_iter().collect();
         // Invert the sort
         list.sort_by(|a, b| (b.1).0.cmp(&(a.1).0));
 
@@ -30,7 +31,7 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
                 last_level = level;
             }
 
-            println!("{}: {:?}", name, value);
+            println!("{}: {:?}", ctx.interner().lookup_or_unknown(name), value);
         }
         Ok(false.into())
     };
@@ -38,8 +39,8 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
     let debugger_close: Value = Value::ForeignFn(free_fn::<S, _, _>("debugger-close", debugger_close).erase());
     let debugger_env: Value = Value::ForeignFn(user_fn::<S, _, _>("debugger-env", debugger_env).erase());
     let mut mapping = HashMap::new();
-    mapping.insert("debugger-close".to_owned(), debugger_close);
-    mapping.insert("debugger-env".to_owned(), debugger_env);
+    mapping.insert(ctx.interner_mut().intern("debugger-close"), debugger_close);
+    mapping.insert(ctx.interner_mut().intern("debugger-env"), debugger_env);
     let mut new_env = Environment::new_with_data(ctx.env().clone(), mapping);
 
     ctx.with_other_env(&mut new_env, |ctx| {

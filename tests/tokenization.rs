@@ -2,6 +2,7 @@ extern crate ares;
 use std::collections::HashMap;
 use ares::parse;
 use ares::Value;
+use ares::intern::SymbolIntern;
 
 
 #[macro_use]
@@ -10,7 +11,8 @@ mod util;
 
 macro_rules! parse_fail {
     ($prog: expr, $estr: expr) => ({
-        let parsed = parse($prog);
+        let mut interner = SymbolIntern::new();
+        let parsed = parse($prog, &mut interner);
         assert!(parsed.is_err());
         let err = parsed.unwrap_err();
         assert_eq!(format!("{}", err), $estr)
@@ -19,11 +21,19 @@ macro_rules! parse_fail {
 
 macro_rules! parse_ok {
     ($prog: expr) => ({
-        let parsed = parse($prog);
+        let mut interner = SymbolIntern::new();
+        let parsed = parse($prog, &mut interner);
         assert!(parsed.is_ok())
     });
     ($prog: expr, $v: expr) => ({
-        let parsed = parse($prog);
+        let mut interner = SymbolIntern::new();
+        let parsed = parse($prog, &mut interner);
+        assert!(parsed.is_ok());
+        let v = parsed.unwrap();
+        assert_eq!(v[0], Value::from($v));
+    });
+    ($prog: expr, $v: expr, $interner: expr) => ({
+        let parsed = parse($prog, $interner);
         assert!(parsed.is_ok());
         let v = parsed.unwrap();
         assert_eq!(v[0], Value::from($v));
@@ -97,7 +107,6 @@ fn mapliteral()
     parse_fail!("{1 2 {} 4}", "Map literal at line 1, column 1 is malformed");
     parse_fail!("{1 2 [1 2] 4}", "Map literal at line 1, column 1 is malformed");
     parse_ok!("{}", HashMap::<Value, Value>::new());
-    parse_ok!("{'a 'b}", hashmap!(Value::symbol("a") => Value::symbol("b")));
     parse_ok!("{\"1\" 2 'a 4 1.0 {1 2}}");
 }
 
@@ -105,8 +114,17 @@ fn mapliteral()
 #[test]
 fn listliteral()
 {
+
     parse_ok!("[1 2]");
     parse_ok!("[1 {1 2}]");
-    parse_ok!("[1 'a]", Value::list(vec![Value::symbol("quote"),
-                                             Value::list(vec![1.into(), Value::symbol("a")])]));
+
+}
+
+#[test]
+fn has_expected_quotes() {
+    let mut interner = SymbolIntern::new();
+    parse_ok!("[1 'a]", Value::list(
+            vec![Value::Symbol(interner.intern("quote")),
+                 Value::list(vec![1.into(), Value::Symbol(interner.intern("a"))])]), &mut interner);
+    parse_ok!("{'a 'b}", hashmap!(Value::Symbol(interner.intern("a")) => Value::Symbol(interner.intern("b"))), &mut interner);
 }
