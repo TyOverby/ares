@@ -46,7 +46,7 @@ pub enum Value {
     Bool(bool),
     Map(Rc<HashMap<Value, Value>>),
 
-    Ident(Rc<String>),
+    Symbol(Rc<String>),
     ForeignFn(ForeignFunction<()>),
     Lambda(Procedure),
 
@@ -58,8 +58,8 @@ impl Value {
         Value::String(Rc::new(s.into()))
     }
 
-    pub fn ident<S: Into<String>>(s: S) -> Value {
-        Value::Ident(Rc::new(s.into()))
+    pub fn symbol<S: Into<String>>(s: S) -> Value {
+        Value::Symbol(Rc::new(s.into()))
     }
 
     pub fn list(v: Vec<Value>) -> Value {
@@ -118,7 +118,7 @@ impl PartialEq for Value {
             (&Float(f1), &Float(f2)) => f1 == f2,
             (&Int(i1), &Int(i2)) => i1 == i2,
             (&Bool(b1), &Bool(b2)) => b1 == b2,
-            (&Ident(ref id1), &Ident(ref id2)) =>
+            (&Symbol(ref id1), &Symbol(ref id2)) =>
                 rc_to_usize(id1) == rc_to_usize(id2) || id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
@@ -141,7 +141,7 @@ impl std::hash::Hash for Value {
             &Value::Float(f) => unsafe { state.write(&transmute::<_, [u8; 8]>(f)) },
             &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
             &Value::Bool(b) => state.write(&[if b {1} else {0}]),
-            &Value::Ident(ref rc) => rc.hash(state),
+            &Value::Symbol(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
             &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),

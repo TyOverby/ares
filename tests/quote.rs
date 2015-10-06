@@ -4,10 +4,10 @@ extern crate ares;
 mod util;
 
 #[test]
-fn ident_quote() {
+fn symbol_quote() {
     eval_ok!("(quote 5)", 5);
-    eval_ok!("(quote a)", ares::Value::ident("a"));
-    eval_ok!("'a", ares::Value::ident("a"));
+    eval_ok!("(quote a)", ares::Value::symbol("a"));
+    eval_ok!("'a", ares::Value::symbol("a"));
 }
 
 #[test]

@@ -97,7 +97,7 @@ fn mapliteral()
     parse_fail!("{1 2 {} 4}", "Map literal at line 1, column 1 is malformed");
     parse_fail!("{1 2 [1 2] 4}", "Map literal at line 1, column 1 is malformed");
     parse_ok!("{}", HashMap::<Value, Value>::new());
-    parse_ok!("{'a 'b}", hashmap!(Value::ident("a") => Value::ident("b")));
+    parse_ok!("{'a 'b}", hashmap!(Value::symbol("a") => Value::symbol("b")));
     parse_ok!("{\"1\" 2 'a 4 1.0 {1 2}}");
 }
 
@@ -107,6 +107,6 @@ fn listliteral()
 {
     parse_ok!("[1 2]");
     parse_ok!("[1 {1 2}]");
-    parse_ok!("[1 'a]", Value::list(vec![Value::ident("quote"),
-                                             Value::list(vec![1.into(), Value::ident("a")])]));
+    parse_ok!("[1 'a]", Value::list(vec![Value::symbol("quote"),
+                                             Value::list(vec![1.into(), Value::symbol("a")])]));
 }

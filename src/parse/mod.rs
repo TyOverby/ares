@@ -18,13 +18,13 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                                         .or_else(|_| s.parse().map(Value::Float))
                                         .map_err(|e| ConversionError(s, Box::new(e))))),
         TokenType::Symbol(s) => Ok(s.parse().map(Value::Bool)
-                                   .unwrap_or(Value::Ident(Rc::new(s)))),
+                                   .unwrap_or(Value::Symbol(Rc::new(s)))),
         TokenType::String(s)     => Ok(Value::String(Rc::new(s))),
         TokenType::Quote         => Ok({
             let quoted = try!(parse_one_expr(tok_stream));
             Value::list(match quoted {
-                None => vec![Value::ident("quote")],
-                Some(v) => vec![Value::ident("quote"), v]
+                None => vec![Value::symbol("quote")],
+                Some(v) => vec![Value::symbol("quote"), v]
             })
         }),
         TokenType::Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),
@@ -34,9 +34,9 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                 Open::LParen => Ok(Value::list(values)),
                 Open::LBracket => if values.iter().all(util::immediate_value) {
                     let values = values.into_iter().map(util::unquote).collect();
-                    Ok(Value::list(vec![Value::ident("quote"), Value::list(values)]))
+                    Ok(Value::list(vec![Value::symbol("quote"), Value::list(values)]))
                 } else {
-                    values.insert(0, Value::ident("list"));
+                    values.insert(0, Value::symbol("list"));
                     Ok(Value::list(values))
                 },
                 Open::LBrace => {
@@ -52,7 +52,7 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>)
                             Err(InvalidMapLiteral(tok.start))
                         }
                     } else {
-                        values.insert(0, Value::ident("hash-map"));
+                        values.insert(0, Value::symbol("hash-map"));
                         Ok(Value::list(values))
                     }
                 }

@@ -12,10 +12,10 @@ mod context;
 
 pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     match value {
-        &Value::Ident(ref ident) => {
-            match ctx.env().borrow().get(&ident) {
+        &Value::Symbol(ref symbol) => {
+            match ctx.env().borrow().get(&symbol) {
                 Some(v) => Ok(v),
-                None => Err(AresError::UndefinedName((**ident).clone()))
+                None => Err(AresError::UndefinedName((**symbol).clone()))
             }
         },
 

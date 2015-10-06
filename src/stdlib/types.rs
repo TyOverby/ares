@@ -24,7 +24,7 @@ gen_is_type!(is_float, Float);
 gen_is_type!(is_bool, Bool);
 gen_is_type!(is_string, String);
 gen_is_type!(is_list, List);
-gen_is_type!(is_ident, Ident);
+gen_is_type!(is_symbol, Symbol);
 gen_is_type!(is_lambda, Lambda);
 gen_is_type!(is_foreign_fn, ForeignFn);
 
@@ -121,7 +121,7 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Lambda(ref l) =>
             format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
-        &Value::Ident(ref i) => format!("'{}", i),
+        &Value::Symbol(ref i) => format!("'{}", i),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {
             fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
