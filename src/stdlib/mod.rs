@@ -66,6 +66,7 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("apply", user_fn("apply", self::core::apply));
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
     ctx.set_fn("if", ast_fn("if", self::core::cond));
+    ctx.set_fn("let", ast_fn("let", self::core::lett));
     ctx.set_fn("set", ast_fn("set", self::core::set));
     ctx.set_fn("define", ast_fn("define", self::core::define));
     ctx.set_fn("lambda", ast_fn("lambda", self::core::lambda));

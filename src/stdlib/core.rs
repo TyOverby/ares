@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use ::{Value, Procedure, AresResult, AresError, ParamBinding, LoadedContext, State};
+use std::collections::HashMap;
+use ::{Value, Procedure, AresResult, AresError, ParamBinding, LoadedContext, State, Environment};
 use super::util::expect_arity;
 
 pub fn equals(args: &[Value]) -> AresResult<Value> {
@@ -13,6 +14,52 @@ pub fn equals(args: &[Value]) -> AresResult<Value> {
     }
 
     Ok(Value::Bool(true))
+}
+
+pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l >=2, "at least 2"));
+    let bindings = &args[0];
+    let bodies = &args[1 ..];
+
+    let bindings = match bindings {
+        &Value::List(ref inner) => inner,
+        other => return Err(AresError::UnexpectedType {
+            value: other.clone(),
+            expected: "List".into()
+        })
+    };
+
+    try!(expect_arity(&**bindings, |l| l % 2 == 0, "an even number"));
+
+    let mut new_env = Environment::new_with_data(ctx.env().clone(), HashMap::new());
+    for pair in bindings.chunks(2) {
+        let (name, value) = (&pair[0], &pair[1]);
+
+        let name = match name {
+            &Value::Ident(ref name) => (**name).clone(),
+            other => return Err(AresError::UnexpectedType {
+                value: other.clone(),
+                expected: "Ident".into()
+            })
+        };
+
+        let evaluated = ctx.with_other_env(&mut new_env, move |new_ctx| {
+            new_ctx.eval(value)
+        });
+        let evaluated = try!(evaluated);
+
+        new_env.borrow_mut().insert_here(name, evaluated.clone());
+    }
+
+    let mut last = None;
+    try!(ctx.with_other_env(&mut new_env, |new_ctx| -> AresResult<()> {
+        for body in bodies {
+            last = Some(try!(new_ctx.eval(body)));
+        }
+        Ok(())
+    }));
+
+    Ok(last.unwrap())
 }
 
 pub fn eval<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
