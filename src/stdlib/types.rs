@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use ::{Value, AresResult, AresError, rc_to_usize};
+use ::{Value, AresResult, AresError, rc_to_usize, State, LoadedContext};
+use ::intern::SymbolIntern;
 use super::util::expect_arity;
 
 macro_rules! gen_is_type {
@@ -104,14 +105,14 @@ pub fn to_bool(values: &[Value]) -> AresResult<Value> {
     res
 }
 
-pub fn to_string(values: &[Value]) -> AresResult<Value> {
+pub fn to_string<S: State + ?Sized>(values: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
     let first = values.first().unwrap();
-    let s = to_string_helper(&first);
+    let s = to_string_helper(&first, ctx.interner());
     Ok(Value::String(Rc::new(s)))
 }
 
-fn to_string_helper(value: &Value) -> String {
+fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),
@@ -121,10 +122,10 @@ fn to_string_helper(value: &Value) -> String {
         &Value::Lambda(ref l) =>
             format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
-        &Value::Symbol(ref i) => format!("'{}", i),
+        &Value::Symbol(s) => format!("'{}", interner.lookup_or_unknown(s)),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {
-            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
+            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
                 let ptr = rc_to_usize(vec);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
@@ -132,7 +133,7 @@ fn to_string_helper(value: &Value) -> String {
                     seen.insert(ptr);
                     buf.push_str("[");
                     for v in vec.iter() {
-                        build_buf(v, buf, seen);
+                        build_buf(v, buf, seen, interner);
                         buf.push_str(", ");
                     }
                     // remove trailing comma ans space
@@ -141,7 +142,7 @@ fn to_string_helper(value: &Value) -> String {
                     buf.push_str("]");
                 }
             }
-            fn format_pairs(m: &Rc<HashMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>) {
+            fn format_pairs(m: &Rc<HashMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
                 let ptr = rc_to_usize(m);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
@@ -149,23 +150,23 @@ fn to_string_helper(value: &Value) -> String {
                     seen.insert(ptr);
                     buf.push_str("{");
                     for (k, v) in m.iter() {
-                        build_buf(k, buf, seen);
+                        build_buf(k, buf, seen, interner);
                         buf.push_str(", ");
-                        build_buf(v, buf, seen);
+                        build_buf(v, buf, seen, interner);
                     }
                     buf.push_str("}")
                 }
             }
-            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>) {
+            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
                 match cur {
-                    &Value::List(ref v) => format_singles(v, buf, seen),
-                    &Value::Map(ref m) => format_pairs(m, buf, seen),
-                    other => buf.push_str(&to_string_helper(&other))
+                    &Value::List(ref v) => format_singles(v, buf, seen, interner),
+                    &Value::Map(ref m) => format_pairs(m, buf, seen, interner),
+                    other => buf.push_str(&to_string_helper(&other, interner))
                 }
             }
             let mut inner = String::new();
             let mut seen = HashSet::new();
-            build_buf(&l, &mut inner, &mut seen);
+            build_buf(&l, &mut inner, &mut seen, interner);
             inner
         }
     }
