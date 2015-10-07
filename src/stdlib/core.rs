@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use ::{Value, Procedure, AresResult, AresError, ParamBinding, LoadedContext, State, Environment};
 use super::util::expect_arity;
+use ::intern::Symbol;
 
 pub fn equals(args: &[Value]) -> AresResult<Value> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
@@ -36,7 +37,7 @@ pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
         let (name, value) = (&pair[0], &pair[1]);
 
         let name = match name {
-            &Value::Symbol(ref name) => (**name).clone(),
+            &Value::Symbol(s) => s,
             other => return Err(AresError::UnexpectedType {
                 value: other.clone(),
                 expected: "Symbol".into()
@@ -84,9 +85,9 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
     let param_names = match &args[0] {
         &Value::List(ref v) => {
-            let r: AresResult<Vec<String>> = v.iter().map(|n| {
+            let r: AresResult<Vec<Symbol>> = v.iter().map(|n| {
                 match n {
-                    &Value::Symbol(ref s) => Ok((&**s).clone()),
+                    &Value::Symbol(s) => Ok(s),
                     &ref other => Err(AresError::UnexpectedType {
                         value: other.clone(),
                         expected: "Symbol".into()
@@ -95,8 +96,8 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
             }).collect();
             ParamBinding::ParamList(try!(r))
         }
-        &Value::Symbol(ref v) => {
-            ParamBinding::SingleIdent((**v).clone())
+        &Value::Symbol(s) => {
+            ParamBinding::SingleIdent(s)
         }
         x => {
             return Err(AresError::UnexpectedArgsList(x.clone()));
@@ -115,16 +116,16 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
 
 pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
-    let name: String = match &args[0] {
-        &Value::Symbol(ref s) => (**s).clone(),
+    let name = match &args[0] {
+        &Value::Symbol(s) => s,
         &ref other => return Err(AresError::UnexpectedType {
             value: other.clone(),
             expected: "Symbol".into()
         }),
     };
 
-    if ctx.env().borrow().is_defined_at_this_level(&name) {
-        return Err(AresError::AlreadyDefined(name.into()))
+    if ctx.env().borrow().is_defined_at_this_level(name) {
+        return Err(AresError::AlreadyDefined(ctx.interner().lookup_or_unknown(name).into()))
     }
 
     let value = &args[1];
@@ -137,7 +138,7 @@ pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
 pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
-        &Value::Symbol(ref s) => (**s).clone(),
+        &Value::Symbol(s) => s,
         &ref v => return Err(AresError::UnexpectedType {
             value: v.clone(),
             expected: "Symbol".into()
@@ -146,12 +147,12 @@ pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Are
 
     let value = &args[1];
 
-    if !ctx.env().borrow().is_defined(&name) {
-        return Err(AresError::UndefinedName(name.into()))
+    if !ctx.env().borrow().is_defined(name) {
+        return Err(AresError::UndefinedName(ctx.interner().lookup_or_unknown(name).into()))
     }
 
     let result = try!(ctx.eval(value));
-    ctx.env().borrow_mut().with_value_mut(&name, |v| *v = result.clone());
+    ctx.env().borrow_mut().with_value_mut(name, |v| *v = result.clone());
     Ok(result)
 }
 

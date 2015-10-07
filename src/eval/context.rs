@@ -6,9 +6,11 @@ use std::any::Any;
 
 use super::{Env, eval, apply};
 use ::{Value, AresResult, AresError, parse, stdlib, Environment, ForeignFunction};
+use ::intern::SymbolIntern;
 
 pub struct Context<S: State + ?Sized> {
     env: Env,
+    interner: SymbolIntern,
     _state: PhantomData<S>,
 }
 
@@ -26,6 +28,7 @@ impl <S: State + ?Sized> Context<S> {
         let env = Rc::new(RefCell::new(Environment::new()));
         let mut ctx = Context {
             env: env,
+            interner: SymbolIntern::new(),
             _state: PhantomData,
         };
         stdlib::load_all(&mut ctx);
@@ -35,6 +38,7 @@ impl <S: State + ?Sized> Context<S> {
     pub fn new_empty() -> Context<S> {
         Context {
             env: Rc::new(RefCell::new(Environment::new())),
+            interner: SymbolIntern::new(),
             _state: PhantomData,
         }
     }
@@ -52,14 +56,18 @@ impl <S: State + ?Sized> Context<S> {
     }
 
     pub fn get<N: AsRef<str>>(&self, name: &N) -> Option<Value> {
-        self.env.borrow_mut().get(name.as_ref())
+        if let Some(symbol) = self.interner.symbol_for_name(name) {
+            self.env.borrow_mut().get(symbol)
+        } else {
+            None
+        }
     }
 
-    pub fn set<N: Into<String>>(&mut self, name: N, value: Value) -> Option<Value> {
-        self.env.borrow_mut().insert_here(name, value)
+    pub fn set<N: AsRef<str> + Into<String>>(&mut self, name: N, value: Value) -> Option<Value> {
+        self.env.borrow_mut().insert_here(self.interner.intern(name), value)
     }
 
-    pub fn set_fn<N: Into<String>>(&mut self, name: N, f: ForeignFunction<S>) -> Option<Value> {
+    pub fn set_fn<N: AsRef<str> + Into<String>>(&mut self, name: N, f: ForeignFunction<S>) -> Option<Value> {
         self.set(name, Value::ForeignFn(f.erase()))
     }
 
@@ -69,6 +77,14 @@ impl <S: State + ?Sized> Context<S> {
 
     pub fn env_mut(&mut self) -> &mut Env {
         &mut self.env
+    }
+
+    pub fn interner(&self) -> &SymbolIntern {
+        &self.interner
+    }
+
+    pub fn interner_mut(&mut self) -> &mut SymbolIntern {
+        &mut self.interner
     }
 }
 
@@ -91,7 +107,7 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
     }
 
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
-        let trees = try!(parse(program));
+        let trees = try!(parse(program, &mut self.interner));
         let mut last = None;
         for tree in trees {
             last = Some(try!(self.eval(&tree)))
@@ -106,11 +122,11 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         apply(func, &args[..], self)
     }
 
-    pub fn call_named<N: AsRef<str>>(&mut self, global_fn: N, args: &[Value]) -> AresResult<Value> {
-        let func = self.env.borrow().get(global_fn.as_ref());
+    pub fn call_named<N: AsRef<str>>(&mut self, named_fn: &N, args: &[Value]) -> AresResult<Value> {
+        let func = self.get(named_fn);
         match func {
             Some(v) => self.call(&v, args),
-            None => Err(AresError::UndefinedName(global_fn.as_ref().into()))
+            None => Err(AresError::UndefinedName(named_fn.as_ref().into()))
         }
     }
 

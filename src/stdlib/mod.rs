@@ -1,5 +1,10 @@
 use ::{user_fn, free_fn, ast_fn, Context, State};
 
+// Keep these here for when you want to build huge changes
+// pub fn load_all<T>(_: T) {}
+// pub fn load_debug<T>(_: T) {}
+
+
 pub mod arithmetic;
 pub mod math;
 pub mod core;
@@ -156,7 +161,7 @@ pub fn load_math<S: State + ?Sized>(ctx: &mut Context<S>) {
 pub fn load_types<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("->int", free_fn("->int", self::types::to_int));
     ctx.set_fn("->float", free_fn("->float", self::types::to_float));
-    ctx.set_fn("->string", free_fn("->string", self::types::to_string));
+    ctx.set_fn("->string", ast_fn("->string", self::types::to_string));
     ctx.set_fn("->bool", free_fn("->bool", self::types::to_bool));
 
     ctx.set_fn("int?", free_fn("int?", self::types::is_int));

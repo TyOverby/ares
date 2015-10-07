@@ -47,7 +47,7 @@ pub enum Value {
     Bool(bool),
     Map(Rc<HashMap<Value, Value>>),
 
-    Symbol(Rc<String>),
+    Symbol(intern::Symbol),
     ForeignFn(ForeignFunction<()>),
     Lambda(Procedure),
 
@@ -57,10 +57,6 @@ pub enum Value {
 impl Value {
     pub fn string<S: Into<String>>(s: S) -> Value {
         Value::String(Rc::new(s.into()))
-    }
-
-    pub fn symbol<S: Into<String>>(s: S) -> Value {
-        Value::Symbol(Rc::new(s.into()))
     }
 
     pub fn list(v: Vec<Value>) -> Value {
@@ -119,8 +115,7 @@ impl PartialEq for Value {
             (&Float(f1), &Float(f2)) => f1 == f2,
             (&Int(i1), &Int(i2)) => i1 == i2,
             (&Bool(b1), &Bool(b2)) => b1 == b2,
-            (&Symbol(ref id1), &Symbol(ref id2)) =>
-                rc_to_usize(id1) == rc_to_usize(id2) || id1 == id2,
+            (&Symbol(ref id1), &Symbol(ref id2)) => id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
             (&Map(ref m1), &Map(ref m2)) => m1 == m2,

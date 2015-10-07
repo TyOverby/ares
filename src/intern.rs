@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct Symbol {
     id: u32
 }
@@ -38,8 +38,20 @@ impl SymbolIntern {
         }
     }
 
-    pub fn lookup(&self, symbol: &Symbol) -> Option<&str> {
-        self.sym_to_string.get(symbol).map(|s| &s[..])
+    pub fn symbol_for_name<S: AsRef<str>>(&self, symbol_str: &S) -> Option<Symbol> {
+        self.string_to_sym.get(symbol_str.as_ref()).cloned()
+    }
+
+    pub fn contains<S: AsRef<str>>(&self, symbol_str: S) -> bool {
+        self.string_to_sym.contains_key(symbol_str.as_ref())
+    }
+
+    pub fn lookup(&self, symbol: Symbol) -> Option<&str> {
+        self.sym_to_string.get(&symbol).map(|s| &s[..])
+    }
+
+    pub fn lookup_or_unknown(&self, symbol: Symbol) -> &str {
+        self.lookup(symbol).unwrap_or("<unknown symbol>")
     }
 }
 
