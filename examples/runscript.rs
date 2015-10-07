@@ -9,7 +9,7 @@ fn main() {
 
     ctx.set_fn("print", free_fn("print", |args| {
         let mut buf = String::new();
-        write!(buf, "{:?}", args);
+        write!(buf, "{:?}", args).unwrap();
         println!("{}", buf);
         Ok(Value::string(buf))
     }));
@@ -18,7 +18,7 @@ fn main() {
     let mut ctx = ctx.load(&mut dummy);
 
     let mut buffer = String::new();
-    stdin().read_to_string(&mut buffer);
+    stdin().read_to_string(&mut buffer).unwrap();
 
-    ctx.eval_str(&buffer);
+    ctx.eval_str(&buffer).unwrap();
 }
