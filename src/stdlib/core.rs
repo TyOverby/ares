@@ -189,3 +189,59 @@ pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
     };
     Ok(Value::Symbol(symbol))
 }
+
+pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    fn map<S: State + ?Sized>(v: &Value, building: &mut Vec<Value>, ctx: &mut LoadedContext<S>, in_list: bool) ->  AresResult<()> {
+        let unquote = Value::symbol("unquote");
+        let unquote_splicing = Value::symbol("unquote-splicing");
+        println!("map considering: {:?}", v);
+        match v {
+            &Value::Bool(_) | &Value::String(_) | &Value::Float(_)  |
+            &Value::Int(_) | &Value::Lambda(_) | &Value::ForeignFn(_) |
+            &Value::UserData(_) | &Value::Map(_) => {
+                building.push(v.clone());
+                Ok(())
+            },
+            &Value::Symbol(_) => {
+                building.push(Value::list(vec![Value::symbol("quote"), v.clone()]));
+                Ok(())
+            },
+            &Value::List(ref v) => {
+                let done = v.len() == 2 && {
+                    if v[0] == unquote {
+                        building.push(try!(ctx.eval(&v[1])));
+                        true
+                    } else if v[0] == unquote_splicing {
+                        if !in_list {
+                            return Err(AresError::InvalidState("unquote-splicing only valid in list".into()))
+                        }
+                        let evald = try!(ctx.eval(&v[1]));
+                        match evald {
+                            Value::List(v) => { building.extend(v.iter().cloned()); true },
+                            other => return Err(AresError::UnexpectedType { value: other, expected: "List".into() })
+                        }
+                    } else {
+                        false
+                    }
+                };
+                if done { 
+                    Ok(()) 
+                } else {
+                    let mut inner = vec![];
+                    for elem in v.iter() {
+                        try!(map(&elem, &mut inner, ctx, true))
+                    }
+                    building.push(Value::list(inner));
+                    Ok(())
+                }
+            }
+        }
+    }
+    let mut building = vec![];
+    try!(map(&args[0], &mut building, ctx, false));
+    Ok(building[0].clone())
+}
+
+pub fn unquote_error<S: State + ?Sized>(_args: &[Value], _ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    Err(AresError::InvalidUnquotation)
+}

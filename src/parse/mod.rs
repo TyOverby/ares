@@ -21,11 +21,12 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>, interner: &mu
         TokenType::Symbol(s) => Ok(s.parse().map(Value::Bool)
                                    .unwrap_or(Value::Symbol(interner.intern(s)))),
         TokenType::String(s)     => Ok(Value::String(Rc::new(s))),
-        TokenType::Quote         => Ok({
-            let quoted = try!(parse_one_expr(tok_stream, interner));
+        TokenType::FormLike(fl)  => Ok({
+            let quoted = try!(parse_one_expr(tok_stream));
+            let interned = Value::Symbol(interner.intern(fl.form_name()));
             Value::list(match quoted {
-                None => vec![Value::Symbol(interner.intern("quote"))],
-                Some(v) => vec![Value::Symbol(interner.intern("quote")), v]
+                None => vec![interned],
+                Some(v) => vec![interned, v]
             })
         }),
         TokenType::Close(close)  => Err(ExtraRightDelimiter(close, tok.start)),

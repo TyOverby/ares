@@ -32,7 +32,7 @@ impl Position {
 pub enum TokenType {
     Open(Open),
     Close(Close),
-    Quote,
+    FormLike(FormLike),
     String(String),
     Number(String),
     Symbol(String)
@@ -42,6 +42,22 @@ pub enum TokenType {
 pub enum Open { LParen, LBrace, LBracket }
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Close { RParen, RBrace, RBracket }
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum FormLike { Quote, QuasiQuote, Unquote, UnquoteSplicing }
+
+impl FormLike {
+    #[inline]
+    pub fn form_name(&self) -> &'static str {
+        use self::FormLike::*;
+        match self {
+            &Quote => "quote",
+            &QuasiQuote => "quasiquote",
+            &Unquote => "unquote",
+            &UnquoteSplicing => "unquote-splicing"
+        }
+    }
+}
 
 use self::Open::*;
 use self::Close::*;
@@ -132,10 +148,25 @@ impl<'a> Iterator for TokenIter<'a>
     type Item = Result<Token, ParseError>;
     fn next<'b>(&'b mut self) -> Option<Self::Item> {
         use self::TokenType::*;
+        use self::FormLike::*;
         self.skip_ws();
         if let Some((start, curchar, pos)) = self.iter.next() {
             match curchar {
-                '\'' => Some(Ok(Token::new(Quote, pos, pos.next()))),
+                '\'' => Some(Ok(Token::new(FormLike(Quote), pos, pos.next()))),
+                '`' => Some(Ok(Token::new(FormLike(QuasiQuote), pos, pos.next()))),
+                ',' => {
+                    let unquote = Some(Ok(Token::new(FormLike(Unquote), pos, pos.next())));
+                    if let Some(&(_, c, nextpos)) = self.iter.peek() {
+                        if c == '@' {
+                            self.iter.next();
+                            Some(Ok(Token::new(FormLike(UnquoteSplicing), pos, nextpos.next())))
+                        } else {
+                            unquote
+                        }
+                    } else {
+                        unquote
+                    }
+                },
                 c if is_symbol_start_c(c) => Some(self.read_symbol(c, start, pos)),
                 c if c.is_digit(10) => Some(self.read_number(start, pos)),
                 '(' | ')' | '[' | ']' | '{' | '}' => Some(Ok(Token::new_delim(curchar, pos).unwrap())),

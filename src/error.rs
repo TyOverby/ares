@@ -21,6 +21,7 @@ pub enum AresError {
     IllegalConversion{value: Value, into: String},
     UndefinedName(String),
     InvalidState(String),
+    InvalidUnquotation,
 
     // TODO: NoNamedSet, NoValuedSet
     NoNameSet,

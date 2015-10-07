@@ -35,6 +35,14 @@ macro_rules! eval_err {
     }
 }
 
+macro_rules! s {
+    ($s:expr) => { ares::Value::symbol($s) }
+}
+
+macro_rules! v {
+    ($($s:expr),*) => { ares::Value::list(vec![$($s),*]) }
+}
+
 pub fn e(program: &str) -> AresResult<Value> {
     let mut ctx = Context::new();
     let mut dummy = ();
