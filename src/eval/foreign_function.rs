@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::any::TypeId;
 
-use ::{Value, AresResult, rc_to_usize, write_usize, State};
+use ::{Value, AresResult, rc_to_usize, State};
 
 use super::context::LoadedContext;
 
@@ -98,7 +98,7 @@ impl <S: State + ?Sized> Eq for ForeignFunction<S> {}
 
 impl <S: State + ?Sized> ::std::hash::Hash for ForeignFunction<S> {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-        write_usize(rc_to_usize(&self.function), state);
+        state.write_usize(rc_to_usize(&self.function));
     }
 }
 

@@ -140,19 +140,8 @@ impl std::hash::Hash for Value {
             &Value::Symbol(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p) => p.hash(state),
-            &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),
+            &Value::UserData(ref u) => state.write_usize(rc_to_usize(u)),
             &Value::Map(_) => unimplemented!()  // hashmap not hashable.
-        }
-    }
-}
-
-fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
-    use std::mem::transmute;
-    unsafe {
-        if cfg!(target_pointer_width = "32") {
-            hasher.write(&transmute::<_, [u8; 4]>((v as u32)))
-        } else {
-            hasher.write(&transmute::<_, [u8; 8]>((v as u64)))
         }
     }
 }

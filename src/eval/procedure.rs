@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use ::{Value, rc_to_usize, write_usize};
+use ::{Value, rc_to_usize};
 
 pub use super::environment::{Env, Environment};
 use ::intern::Symbol;
@@ -67,7 +67,7 @@ impl ::std::fmt::Debug for Procedure {
 
 impl ::std::hash::Hash for Procedure {
     fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
-        write_usize(rc_to_usize(&self.bodies), state);
-        write_usize(rc_to_usize(&self.environment), state);
+        state.write_usize(rc_to_usize(&self.bodies));
+        state.write_usize(rc_to_usize(&self.environment));
     }
 }
