@@ -1,5 +1,10 @@
 use ::{user_fn, free_fn, ast_fn, Context, State};
 
+// Keep these here for when you want to build huge changes
+// pub fn load_all<T>(_: T) {}
+// pub fn load_debug<T>(_: T) {}
+
+
 pub mod arithmetic;
 pub mod math;
 pub mod core;
@@ -25,16 +30,11 @@ pub mod util {
     }
 }
 
-fn eval_into<S: State + ?Sized, P: AsRef<str>>(src: &P, old_ctx: &mut Context<S>) {
+fn eval_into<S: State + ?Sized, P: AsRef<str>>(src: &P, ctx: &mut Context<S>) {
     use std::mem::uninitialized;
-    let env = old_ctx.env_mut();
-
-    let mut ctx = Context::new_empty();
     let mut dummy: &mut S = unsafe { uninitialized() };
     let mut ctx = ctx.load(dummy);
-    ctx.with_other_env(env, |ctx| {
-        ctx.eval_str(src.as_ref()).unwrap();
-    });
+    ctx.eval_str(src.as_ref()).unwrap();
 }
 
 pub fn load_all<S: State + ?Sized>(ctx: &mut Context<S>) {
@@ -83,7 +83,6 @@ pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
     eval_into(&format!("(define filter {})", self::list::FILTER), ctx);
     eval_into(&format!("(define flatten {})", self::list::FLATTEN), ctx);
     eval_into(&format!("(define concat {})", self::list::CONCAT), ctx);
-
 }
 
 pub fn load_arithmetic<S: State + ?Sized>(ctx: &mut Context<S>) {
@@ -156,7 +155,7 @@ pub fn load_math<S: State + ?Sized>(ctx: &mut Context<S>) {
 pub fn load_types<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("->int", free_fn("->int", self::types::to_int));
     ctx.set_fn("->float", free_fn("->float", self::types::to_float));
-    ctx.set_fn("->string", free_fn("->string", self::types::to_string));
+    ctx.set_fn("->string", user_fn("->string", self::types::to_string));
     ctx.set_fn("->bool", free_fn("->bool", self::types::to_bool));
 
     ctx.set_fn("int?", free_fn("int?", self::types::is_int));

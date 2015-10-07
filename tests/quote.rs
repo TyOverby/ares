@@ -1,13 +1,19 @@
 extern crate ares;
 
+use ares::{Context, Value};
+
 #[macro_use]
 mod util;
 
 #[test]
 fn symbol_quote() {
-    eval_ok!("(quote 5)", 5);
-    eval_ok!("(quote a)", ares::Value::symbol("a"));
-    eval_ok!("'a", ares::Value::symbol("a"));
+    let mut ctx = Context::new();
+    let mut dummy = ();
+    let mut ctx = ctx.load(&mut dummy);
+
+    assert_eq!(ctx.eval_str("(quote 5)").unwrap(), 5.into());
+    assert_eq!(ctx.eval_str("(quote a)").unwrap(), Value::Symbol(ctx.interner_mut().intern("a")));
+    assert_eq!(ctx.eval_str("'a").unwrap(), Value::Symbol(ctx.interner_mut().intern("a")));
 }
 
 #[test]
