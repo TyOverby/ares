@@ -190,56 +190,75 @@ pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
     Ok(Value::Symbol(symbol))
 }
 
+pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
+    where F: FnMut(&Value) -> AresResult<(Value, bool)>
+{
+    let (v, recurse) = try!(f(value));
+    if recurse {
+        match v {
+            Value::List(v) => {
+                let result = try!(v.iter().map(|value| Ok(try!(f(value)).0)).collect::<AresResult<Vec<Value>>>());
+                Ok(Value::list(result))
+            },
+            Value::Map(m) => {
+                let mut result = HashMap::with_capacity(m.len());
+                for (k, v) in m.iter() {
+                    let new_k = try!(f(k)).0;
+                    let new_v = try!(f(v)).0;
+                    result.insert(new_k, new_v);
+                }
+                Ok(Value::Map(Rc::new(result)))
+            },
+            v => Ok(v)
+        }
+    } else {
+        Ok(v)
+    }
+}
+
 pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
-    fn map<S: State + ?Sized>(v: &Value, building: &mut Vec<Value>, ctx: &mut LoadedContext<S>, in_list: bool) ->  AresResult<()> {
-        let unquote = Value::symbol("unquote");
-        let unquote_splicing = Value::symbol("unquote-splicing");
-        println!("map considering: {:?}", v);
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    let unquote = Value::symbol("unquote");
+    let unquote_splicing = Value::symbol("unquote-splicing");
+    let mut walk_f = |v: &Value| {
         match v {
             &Value::Bool(_) | &Value::String(_) | &Value::Float(_)  |
             &Value::Int(_) | &Value::Lambda(_) | &Value::ForeignFn(_) |
-            &Value::UserData(_) | &Value::Map(_) => {
-                building.push(v.clone());
-                Ok(())
-            },
-            &Value::Symbol(_) => {
-                building.push(Value::list(vec![Value::symbol("quote"), v.clone()]));
-                Ok(())
-            },
-            &Value::List(ref v) => {
-                let done = v.len() == 2 && {
-                    if v[0] == unquote {
-                        building.push(try!(ctx.eval(&v[1])));
-                        true
-                    } else if v[0] == unquote_splicing {
-                        if !in_list {
-                            return Err(AresError::InvalidState("unquote-splicing only valid in list".into()))
-                        }
-                        let evald = try!(ctx.eval(&v[1]));
-                        match evald {
-                            Value::List(v) => { building.extend(v.iter().cloned()); true },
-                            other => return Err(AresError::UnexpectedType { value: other, expected: "List".into() })
-                        }
-                    } else {
-                        false
-                    }
-                };
-                if done { 
-                    Ok(()) 
-                } else {
-                    let mut inner = vec![];
-                    for elem in v.iter() {
-                        try!(map(&elem, &mut inner, ctx, true))
-                    }
-                    building.push(Value::list(inner));
-                    Ok(())
+            &Value::UserData(_) | &Value::Map(_) | &Value::Symbol(_) => Ok((v.clone(), false)),
+
+            &Value::List(ref lst) => {
+                if lst.len() >= 1 && lst[0] == unquote_splicing {
+                    return Err(AresError::InvalidUnquotation)
+                } else if lst.len() == 2 && lst[0] == unquote {
+                    return Ok((try!(ctx.eval(&lst[1])), false))
                 }
+                let mut new_v = vec![];
+                for elem in lst.iter() {
+                    match elem {
+                        &Value::List(ref inner) => {
+                            if inner.len() == 2 && inner[0] == unquote {
+                                new_v.push(try!(ctx.eval(&inner[1])));
+                            } else if inner.len() == 2 && inner[0] == unquote_splicing {
+                                let evald = try!(ctx.eval(&inner[1]));
+                                match evald {
+                                    Value::List(ref evald) => new_v.extend(evald.iter().cloned()),
+                                    _ => return Err(AresError::UnexpectedType {
+                                        value: evald,
+                                        expected: "list".into()
+                                    })
+                                }
+                            } else {
+                                new_v.push(elem.clone())
+                            }
+                        },
+                        elem => new_v.push(elem.clone())
+                    }
+                }
+                Ok((Value::list(new_v), true))
             }
         }
-    }
-    let mut building = vec![];
-    try!(map(&args[0], &mut building, ctx, false));
-    Ok(building[0].clone())
+    };
+    walk(&args[0], &mut walk_f)
 }
 
 pub fn unquote_error<S: State + ?Sized>(_args: &[Value], _ctx: &mut LoadedContext<S>) -> AresResult<Value> {
