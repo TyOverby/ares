@@ -36,7 +36,7 @@ macro_rules! eval_err {
 }
 
 macro_rules! s {
-    ($s:expr) => { ares::Value::symbol($s) }
+    ($s:expr, $c:expr) => { ares::Value::Symbol($c.interner_mut().intern($s)) }
 }
 
 macro_rules! v {

@@ -22,7 +22,7 @@ fn one_expr<'a, 'b>(tok: Token, tok_stream: &'a mut TokenIter<'b>, interner: &mu
                                    .unwrap_or(Value::Symbol(interner.intern(s)))),
         TokenType::String(s)     => Ok(Value::String(Rc::new(s))),
         TokenType::FormLike(fl)  => Ok({
-            let quoted = try!(parse_one_expr(tok_stream));
+            let quoted = try!(parse_one_expr(tok_stream, interner));
             let interned = Value::Symbol(interner.intern(fl.form_name()));
             Value::list(match quoted {
                 None => vec![interned],

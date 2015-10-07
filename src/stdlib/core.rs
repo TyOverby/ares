@@ -218,8 +218,8 @@ pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
 
 pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
-    let unquote = Value::symbol("unquote");
-    let unquote_splicing = Value::symbol("unquote-splicing");
+    let unquote = Value::Symbol(ctx.interner_mut().intern("unquote"));
+    let unquote_splicing = Value::Symbol(ctx.interner_mut().intern("unquote-splicing"));
     let mut walk_f = |v: &Value| {
         match v {
             &Value::Bool(_) | &Value::String(_) | &Value::Float(_)  |
