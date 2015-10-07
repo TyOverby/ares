@@ -26,7 +26,7 @@ macro_rules! gen_fold {
 }
 
 pub fn add_ints(args: &[Value]) -> AresResult<Value> {
-    gen_fold!(args, 0i64, Value::Int, |acc: &mut i64, v: i64| *acc += v)
+    gen_fold!(args, 0i64, Value::Int, |acc: &mut i64, v: i64| *acc = (*acc).wrapping_add(v))
 }
 
 pub fn add_floats(args: &[Value]) -> AresResult<Value> {
@@ -39,7 +39,7 @@ pub fn sub_ints(args: &[Value]) -> AresResult<Value> {
             if *first {
                 *acc = -*acc;
             }
-            *acc -= v
+            *acc = (*acc).wrapping_sub(v)
         } else {
             *acc = Some((true, -v))
         }
@@ -76,7 +76,7 @@ pub fn sub_floats(args: &[Value]) -> AresResult<Value> {
 }
 
 pub fn mul_ints(args: &[Value]) -> AresResult<Value> {
-    gen_fold!(args, 1i64, Value::Int, |acc: &mut i64, v: i64| *acc *= v)
+    gen_fold!(args, 1i64, Value::Int, |acc: &mut i64, v: i64| *acc = (*acc).wrapping_mul(v))
 }
 
 pub fn mul_floats(args: &[Value]) -> AresResult<Value> {
@@ -86,7 +86,7 @@ pub fn mul_floats(args: &[Value]) -> AresResult<Value> {
 pub fn div_ints(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, None, Value::Int, |acc: &mut Option<i64>, v: i64| {
         if let &mut Some(ref mut acc) = acc {
-            *acc /= v
+            *acc = (*acc).wrapping_div(v)
         } else {
             *acc = Some(v)
         }

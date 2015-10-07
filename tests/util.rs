@@ -13,6 +13,9 @@ macro_rules! hashmap {
 
 #[macro_export]
 macro_rules! eval_ok {
+    ($prog: expr) => {
+        assert!(util::e($prog).is_ok());
+    };
     ($prog: expr, $v: expr) => {
         assert_eq!(util::e($prog).unwrap(), $v.into());
     }

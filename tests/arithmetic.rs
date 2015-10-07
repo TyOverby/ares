@@ -34,3 +34,11 @@ fn basic_division() {
     eval_ok!("(/ 4 2)", 2);
     eval_ok!("(/ 8 (/ 4 2))", 4);
 }
+
+#[test]
+fn wrapping_int_arith() {
+    eval_ok!(&format!("(+ {0} {0})", ::std::i64::MAX));
+    eval_ok!(&format!("(- {0} {0})", ::std::i64::MAX));
+    eval_ok!(&format!("(* {0} {0})", ::std::i64::MAX));
+    eval_ok!(&format!("(/ {0} {0})", ::std::i64::MAX));
+}
