@@ -197,14 +197,14 @@ pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
     if recurse {
         match v {
             Value::List(v) => {
-                let result = try!(v.iter().map(|value| Ok(try!(f(value)).0)).collect::<AresResult<Vec<Value>>>());
+                let result = try!(v.iter().map(|value| Ok(try!(walk(value, f)))).collect::<AresResult<Vec<Value>>>());
                 Ok(Value::list(result))
             },
             Value::Map(m) => {
                 let mut result = HashMap::with_capacity(m.len());
                 for (k, v) in m.iter() {
-                    let new_k = try!(f(k)).0;
-                    let new_v = try!(f(v)).0;
+                    let new_k = try!(walk(k, f));
+                    let new_v = try!(walk(v, f));
                     result.insert(new_k, new_v);
                 }
                 Ok(Value::Map(Rc::new(result)))

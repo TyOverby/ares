@@ -28,4 +28,9 @@ fn quasiquote() {
     eval_ok!("(let (x '(2 3) y 'a) `(1 ,@x x ,y))",
              v!(1.into(), 2.into(), 3.into(), s!("x"), s!("a")));
     eval_ok!("(let (x 1) `,x)", ares::Value::Int(1));
+    eval_ok!("(define unless (lambda (cond body)
+                `(if ,cond () ((lambda () ,@body)))))
+               (unless true '((+ 1 2)))",
+             v![s!("if"), true.into(), v![], v!(v!(s!("lambda"),
+                                                   v![], v![s!("+"), 1.into(), 2.into()]))]);
 }
