@@ -222,10 +222,6 @@ pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
     let unquote_splicing = Value::Symbol(ctx.interner_mut().intern("unquote-splicing"));
     let mut walk_f = |v: &Value| {
         match v {
-            &Value::Bool(_) | &Value::String(_) | &Value::Float(_)  |
-            &Value::Int(_) | &Value::Lambda(_) | &Value::ForeignFn(_) |
-            &Value::UserData(_) | &Value::Map(_) | &Value::Symbol(_) => Ok((v.clone(), false)),
-
             &Value::List(ref lst) => {
                 if lst.len() >= 1 && lst[0] == unquote_splicing {
                     return Err(AresError::InvalidUnquotation)
@@ -255,7 +251,8 @@ pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                     }
                 }
                 Ok((Value::list(new_v), true))
-            }
+            },
+            _ => Ok((v.clone(), false))
         }
     };
     walk(&args[0], &mut walk_f)
