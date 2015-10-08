@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use ::{Value, AresError, AresResult};
+use super::util::expect_arity;
 
 macro_rules! gen_fold {
     ($args: expr, $default: expr, $var: path, $op: expr, $extr: expr) => {
@@ -103,6 +104,21 @@ pub fn div_ints(args: &[Value]) -> AresResult<Value> {
 
 pub fn div_floats(args: &[Value]) -> AresResult<Value> {
     gen_fold!(args, 1.0f64, Value::Float, |acc: &mut f64, v: f64| *acc /= v)
+}
+
+pub fn modulo(args: &[Value]) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l == 2, "exactly 2"));
+    match (&args[0], &args[1]) {
+        (&Value::Int(n1), &Value::Int(n2)) => Ok(Value::Int(n1 % n2)),
+        (other, &Value::Int(_)) => Err(AresError::UnexpectedType {
+            value: other.clone(),
+            expected: "Int".to_owned()
+        }),
+        (_, other) => Err(AresError::UnexpectedType {
+            value: other.clone(),
+            expected: "Int".to_owned()
+        })
+    }
 }
 
 

@@ -42,3 +42,11 @@ fn wrapping_int_arith() {
     eval_ok!(&format!("(* {0} {0})", ::std::i64::MAX));
     eval_ok!(&format!("(/ {0} {0})", ::std::i64::MAX));
 }
+
+#[test]
+fn modulo() {
+    eval_ok!("(% 5 2)", 1);
+    eval_ok!("(% 6 2)", 0);
+    eval_err!("(% 6 2 2)");
+    eval_err!("(% 2)");
+}

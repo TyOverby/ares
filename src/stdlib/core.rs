@@ -162,7 +162,7 @@ pub fn quote<S: State + ?Sized>(args: &[Value], _ctx: &mut LoadedContext<S>) -> 
     Ok(args[0].clone())
 }
 
-pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+pub fn iff<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 3, "exactly 3"));
     let (cond, true_branch, false_branch) = (&args[0], &args[1], &args[2]);
     match try!(ctx.eval(cond)) {
@@ -173,4 +173,49 @@ pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
             expected: "Bool".into()
         })
     }
+}
+
+pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l >= 2 && l % 2 == 0 , "at least 2 and must be an even number"));
+    for group in args.chunks(2) {
+        let f = &group[0];
+        let res = &group[1];
+        match try!(ctx.eval(f)) {
+            Value::Bool(true) => {
+                return ctx.eval(res)
+            }
+            Value::Bool(false) => {  }
+            other => return Err(AresError::UnexpectedType {
+                value: other,
+                expected: "Bool".into()
+            })
+        }
+    }
+
+    Err(AresError::UnhandledCond)
+}
+
+pub fn switch<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l >= 3 && l % 2 == 1 , "at least 3 and must be an odd number"));
+    let subject = &args[0];
+    let args = &args[1..];
+
+    for group in args.chunks(2) {
+        let f = try!(ctx.eval(&group[0]));
+        let res = &group[1];
+        println!("f: {:?}, res: {:?}", f, res);
+        // TODO: replace subject.clone() with ref_slice when that stabilizes.
+        match try!(ctx.call(&f, &[subject.clone()])) {
+            Value::Bool(true) => {
+                return ctx.eval(res)
+            }
+            Value::Bool(false) => {  }
+            other => return Err(AresError::UnexpectedType {
+                value: other,
+                expected: "Bool".into()
+            })
+        }
+    }
+
+    Err(AresError::UnhandledCond)
 }

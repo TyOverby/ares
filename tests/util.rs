@@ -22,6 +22,14 @@ macro_rules! eval_ok {
 }
 
 macro_rules! eval_err {
+    ($prog: expr) => {
+        match util::e($prog) {
+            Ok(v) => {
+                panic!("eval_err! had a value: {:?}", v);
+            }
+            Err(_) => { }
+        }
+    };
     ($prog: expr, $p: pat) => {
         match util::e($prog) {
             Ok(v) => {

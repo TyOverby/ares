@@ -33,6 +33,8 @@ pub enum AresError {
     NoValueDefine,
     MultiValueDefine,
 
+    UnhandledCond,
+
     UserError(Box<Any>)
 }
 

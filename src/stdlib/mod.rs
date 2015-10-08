@@ -65,11 +65,14 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("eval", user_fn("eval", self::core::eval));
     ctx.set_fn("apply", user_fn("apply", self::core::apply));
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
-    ctx.set_fn("if", ast_fn("if", self::core::cond));
+    ctx.set_fn("if", ast_fn("if", self::core::iff));
+    ctx.set_fn("cond", ast_fn("cond", self::core::cond));
+    ctx.set_fn("switch", ast_fn("switch", self::core::switch));
     ctx.set_fn("let", ast_fn("let", self::core::lett));
     ctx.set_fn("set", ast_fn("set", self::core::set));
     ctx.set_fn("define", ast_fn("define", self::core::define));
     ctx.set_fn("lambda", ast_fn("lambda", self::core::lambda));
+    ctx.set_fn("=", free_fn("=", self::core::equals));
 }
 
 pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
@@ -86,7 +89,6 @@ pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
 }
 
 pub fn load_arithmetic<S: State + ?Sized>(ctx: &mut Context<S>) {
-    ctx.set_fn("=", free_fn("=", self::core::equals));
     ctx.set_fn("+", free_fn("+", self::arithmetic::add_ints));
     ctx.set_fn("+.", free_fn("+.", self::arithmetic::add_floats));
 
@@ -98,6 +100,8 @@ pub fn load_arithmetic<S: State + ?Sized>(ctx: &mut Context<S>) {
 
     ctx.set_fn("/", free_fn("/", self::arithmetic::div_ints));
     ctx.set_fn("/.", free_fn("/.", self::arithmetic::div_floats));
+
+    ctx.set_fn("%", free_fn("%", self::arithmetic::modulo));
 }
 
 pub fn load_math<S: State + ?Sized>(ctx: &mut Context<S>) {
