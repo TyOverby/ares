@@ -6,11 +6,11 @@ library *must* be loaded if any other parts of the standard library are to
 be loaded.  However, because of Ares' extendability, you can elect to not load
 core, and forfeit the rest of the standard library.
 
-## eval
+# eval
 Manually evaluates an Ares object.
-### Form: `(eval object)`
+#### Form: `(eval object)`
 Evaluates a single Ares object and returns the result.
-### Examples:
+#### Examples:
 ```clojure
 > (eval (list + 1 2 3))
 6
@@ -18,14 +18,14 @@ Evaluates a single Ares object and returns the result.
 5
 ```
 
-## apply
+# apply
 Evaluates an Ares object as a function given a list of arguments.
-### Form `(apply f arg-list)`
+#### Form `(apply f arg-list)`
 Given a function and a list of arguments `apply` calls the function with
 the argument list providing all the arguments.
 Apply assumes that the arg-list contains pre-evaluated objects, and will
 not evaluate them again.
-### Examples
+#### Examples
 ```clojure
 > (apply + (list 1 2 3))
 6
@@ -33,14 +33,14 @@ not evaluate them again.
 ERROR: UnexpectedType: Expected Int, got List
 ```
 
-## quote
+# quote
 Prevents an object from being evaluated
-### Form `(quote object)`
+#### Form `(quote object)`
 Given a single object, prevents that object from being evaluated.
 This can be used as a way to keep an AST from being run.
 
 The '\'' syntax can be used as an alias for quote.
-### Examples
+#### Examples
 ```clojure
 > (quote (+ 1 2 3))
 [+ 1 2 3]
@@ -48,12 +48,12 @@ The '\'' syntax can be used as an alias for quote.
 'a
 ```
 
-## if
+# if
 Chooses between two control flow paths based on a condition
-### Form `(if condition true-branch false-branch)`
+#### Form `(if condition true-branch false-branch)`
 Evaluates the condition first, then based on the result, evaluates
 either the true-branch or the false-branch.
-### Examples
+#### Examples
 ```clojure
 > (if true 1 2)
 1
@@ -63,11 +63,11 @@ either the true-branch or the false-branch.
 "not int"
 ```
 
-## let
+# let
 Introduces local variable bindings for the duration of the body
-### Form `(let (bindings*) bodies*)`
-The bindings can reference previous bindings and may be recursive.
-### Examples
+#### Form `(let (bindings*) bodies*)`
+Th#e bindings can reference previous bindings and may be recursive.
+#### Examples
 ```clojure
 > (let (a 5) a)
 5
@@ -79,16 +79,16 @@ The bindings can reference previous bindings and may be recursive.
 ERROR: Stack Overflow
 ```
 
-## define
+# define
 Introduces a variable binding in the current scope.
-### Form `(define name value)`
+#### Form `(define name value)`
 Define can be called anywhere in an Ares program and defines
 the value inside its current lexical scope.  The result of define
 is the value that was passed in.
 
 Defines can shadow eachother if in different scopes, but
 can not overwrite one another if in the same scope.
-### Examples
+#### Examples
 ```clojure
 > (define x 5)
 > x
@@ -105,12 +105,12 @@ can not overwrite one another if in the same scope.
 15
 ```
 
-## set
+# set
 Changes a previously-defined variable to have a new value.
-### Form `(set name value)`
+#### Form `(set name value)`
 Sets the name at the closest scope to the set.  Set can not
 define something that doesn't exist yet.
-### Examples
+#### Examples
 ```clojure
 > (define x 5)
 > (set x 10)
@@ -122,11 +122,11 @@ define something that doesn't exist yet.
 10
 ```
 
-## lambda
+# lambda
 Creates a new anonymous function.
-# Form `(lambda (args*) bodies*)` OR `(lambda arg-list bodies*)`
+#### Form `(lambda (args*) bodies*)` OR `(lambda arg-list bodies*)`
 The last body executed will be the one that is returned.
-### Examples
+#### Examples
 ```clojure
 > (define f (lambda (x y z) (+ x y z)))
 > (f 1 2 3)
