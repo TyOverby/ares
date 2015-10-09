@@ -123,7 +123,7 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
         &Value::Lambda(ref l) =>
             format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
-        &Value::Symbol(s) => format!("'{}", interner.lookup_or_unknown(s)),
+        &Value::Symbol(s) => format!("'{}", interner.lookup_or_anon(s)),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {
             fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {

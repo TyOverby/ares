@@ -31,7 +31,7 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
                 last_level = level;
             }
 
-            println!("{}: {:?}", ctx.interner().lookup_or_unknown(name), value);
+            println!("{}: {:?}", ctx.interner().lookup_or_anon(name), value);
         }
         Ok(false.into())
     };

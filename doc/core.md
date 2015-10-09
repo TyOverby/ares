@@ -146,8 +146,12 @@ the value.
 ### Examples
 ```clojure
 > (gensym)
-'s23984 # Arbitrary number
+'s98
+> (gensym) # gives you a unique symbol
+'s99
 > (gensym "some-prefix-")
-'some-prefix-98124 # prefixed arbitrary number
+'some-prefix-100
+> (gensym "some-prefix-")
+'some-prefix-101
 ```
 
