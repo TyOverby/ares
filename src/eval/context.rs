@@ -48,6 +48,10 @@ impl <S: State + ?Sized> Context<S> {
         self
     }
 
+    pub fn format_value(&self, value: &Value) -> String {
+        ::stdlib::types::to_string_helper(value, self.interner())
+    }
+
     pub fn load<'a>(&'a mut self, state: &'a mut S) -> LoadedContext<'a, S> {
         LoadedContext {
             ctx: self,

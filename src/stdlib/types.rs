@@ -112,7 +112,8 @@ pub fn to_string<S: State + ?Sized>(values: &[Value], ctx: &mut LoadedContext<S>
     Ok(Value::String(Rc::new(s)))
 }
 
-fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
+// TODO: move this out of stdlib?  Seems way too useful.
+pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),
