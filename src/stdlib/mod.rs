@@ -70,6 +70,7 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("set", ast_fn("set", self::core::set));
     ctx.set_fn("define", ast_fn("define", self::core::define));
     ctx.set_fn("lambda", ast_fn("lambda", self::core::lambda));
+    ctx.set_fn("gensym", user_fn("gensym", self::core::gensym));
 }
 
 pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {

@@ -173,3 +173,19 @@ pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
         })
     }
 }
+
+pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l <= 1, "at most 1"));
+    let symbol = if args.len() == 0 {
+        ctx.interner_mut().gen_sym_prefix("s")
+    } else {
+        match &args[0] {
+            &Value::String(ref s) => ctx.interner_mut().gen_sym_prefix(&s[..]),
+            other => return Err(AresError::UnexpectedType {
+                value: other.clone(),
+                expected: "String".into()
+            })
+        }
+    };
+    Ok(Value::Symbol(symbol))
+}
