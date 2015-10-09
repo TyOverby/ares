@@ -175,7 +175,7 @@ pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
 }
 
 pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
-    try!(expect_arity(args, |l| l <= 1, "at most 1"));
+    try!(expect_arity(args, |l| l == 0 || l == 1, "either 0 or 1"));
     let symbol = if args.len() == 0 {
         ctx.interner_mut().gen_sym_prefix("s")
     } else {

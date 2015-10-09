@@ -135,3 +135,19 @@ The last body executed will be the one that is returned.
 > (g 1 2 3)
 6
 ```
+
+# gensym
+Generates a unique anonymous symbol
+#### Form `(gensym)` OR `(gensym string-prefix)`
+These anonymous symbols can be used to generate code that has
+requires named symbols.  They can also be used as keys for
+dictionaries so that it is impossible for other programmers to access
+the value.
+### Examples
+```clojure
+> (gensym)
+'s23984 # Arbitrary number
+> (gensym "some-prefix-")
+'some-prefix-98124 # prefixed arbitrary number
+```
+
