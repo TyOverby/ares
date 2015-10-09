@@ -64,7 +64,6 @@ pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
 }
 
 pub fn eval<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
-    println!("{:?}", ctx.interner());
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     ctx.eval(&args[0])
 }
