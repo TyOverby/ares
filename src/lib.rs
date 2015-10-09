@@ -34,6 +34,7 @@ pub enum Value {
     Float(f64),
     Int(i64),
     Bool(bool),
+    Option(Option<Box<Value>>),
     Map(Rc<HashMap<Value, Value>>),
 
     Symbol(intern::Symbol),
@@ -74,6 +75,15 @@ gen_from!(bool, Value::Bool);
 
 gen_from!(String, Value::String, Rc::new);
 
+impl <T: Into<Value>> From<Option<T>> for Value {
+    fn from(x: Option<T>) -> Value {
+        match x {
+            Some(v) => Value::Option(Some(Box::new(v.into()))),
+            None => Value::Option(None)
+        }
+    }
+}
+
 impl <T: Into<Value>> From<Vec<T>> for Value {
     fn from(x: Vec<T>) -> Value {
         Value::List(Rc::new(x.into_iter().map(|a| a.into()).collect()))
@@ -99,12 +109,14 @@ impl PartialEq for Value {
         use ::Value::*;
 
         match (self, other) {
-            (&List(ref rc1), &List(ref rc2)) => rc1 == rc2,
+            (&List(ref rc1), &List(ref rc2)) =>
+                rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
             (&String(ref rc1), &String(ref rc2)) =>
                 rc_to_usize(rc1) == rc_to_usize(rc2) || rc1 == rc2,
             (&Float(f1), &Float(f2)) => f1 == f2,
             (&Int(i1), &Int(i2)) => i1 == i2,
             (&Bool(b1), &Bool(b2)) => b1 == b2,
+            (&Value::Option(ref o1), &Value::Option(ref o2)) => o1 == o2,
             (&Symbol(ref id1), &Symbol(ref id2)) => id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1, b1), &Lambda(ref l2, b2)) => l1 == l2 && b1 == b2,
@@ -127,11 +139,15 @@ impl std::hash::Hash for Value {
             &Value::String(ref rc) => rc.hash(state),
             &Value::Float(f) => unsafe { state.write(&transmute::<_, [u8; 8]>(f)) },
             &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
-            &Value::Bool(b) => state.write(&[if b {
-                                                 1
-                                             } else {
-                                                 0
-                                             }]),
+            &Value::Bool(b) => {
+                let byte = if b {
+                    1
+                } else {
+                    0
+                };
+                state.write(&[byte])
+            },
+            &Value::Option(ref o) => o.hash(state),
             &Value::Symbol(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
             &Value::Lambda(ref p, ref b) => {
