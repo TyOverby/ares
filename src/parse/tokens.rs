@@ -154,7 +154,7 @@ impl<'a> Iterator for TokenIter<'a>
             match curchar {
                 '\'' => Some(Ok(Token::new(FormLike(Quote), pos, pos.next()))),
                 '`' => Some(Ok(Token::new(FormLike(QuasiQuote), pos, pos.next()))),
-                ',' => {
+                '~' => {
                     let unquote = Some(Ok(Token::new(FormLike(Unquote), pos, pos.next())));
                     if let Some(&(_, c, nextpos)) = self.iter.peek() {
                         if c == '@' {
