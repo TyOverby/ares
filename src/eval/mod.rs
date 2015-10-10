@@ -15,7 +15,7 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> Are
         &Value::Symbol(symbol) => {
             match ctx.env().borrow().get(symbol) {
                 Some(v) => Ok(v),
-                None => Err(AresError::UndefinedName(ctx.interner().lookup_or_unknown(symbol).into()))
+                None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol)))
             }
         },
 

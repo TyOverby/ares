@@ -112,7 +112,8 @@ pub fn to_string<S: State + ?Sized>(values: &[Value], ctx: &mut LoadedContext<S>
     Ok(Value::String(Rc::new(s)))
 }
 
-fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
+// TODO: move this out of stdlib?  Seems way too useful.
+pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
     match value {
         &Value::Int(i) => format!("{}", i),
         &Value::Float(f) => format!("{}", f),
@@ -122,7 +123,7 @@ fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
         &Value::Lambda(ref l) =>
             format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
-        &Value::Symbol(s) => format!("'{}", interner.lookup_or_unknown(s)),
+        &Value::Symbol(s) => format!("'{}", interner.lookup_or_anon(s)),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {
             fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {

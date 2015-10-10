@@ -64,7 +64,6 @@ pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
 }
 
 pub fn eval<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
-    println!("{:?}", ctx.interner());
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     ctx.eval(&args[0])
 }
@@ -126,7 +125,7 @@ pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
     };
 
     if ctx.env().borrow().is_defined_at_this_level(name) {
-        return Err(AresError::AlreadyDefined(ctx.interner().lookup_or_unknown(name).into()))
+        return Err(AresError::AlreadyDefined(ctx.interner().lookup_or_anon(name)))
     }
 
     let value = &args[1];
@@ -149,7 +148,7 @@ pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Are
     let value = &args[1];
 
     if !ctx.env().borrow().is_defined(name) {
-        return Err(AresError::UndefinedName(ctx.interner().lookup_or_unknown(name).into()))
+        return Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(name)))
     }
 
     let result = try!(ctx.eval(value));
@@ -176,9 +175,9 @@ pub fn cond<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
 }
 
 pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
-    try!(expect_arity(args, |l| l <= 1, "at most 1"));
+    try!(expect_arity(args, |l| l == 0 || l == 1, "either 0 or 1"));
     let symbol = if args.len() == 0 {
-        ctx.interner_mut().gen_sym_prefix("s")
+        ctx.interner_mut().gen_sym()
     } else {
         match &args[0] {
             &Value::String(ref s) => ctx.interner_mut().gen_sym_prefix(&s[..]),

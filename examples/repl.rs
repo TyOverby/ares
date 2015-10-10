@@ -11,7 +11,7 @@ fn main() {
 
     while let Some(line) = ares::util::prompt("repl> ") {
         match ctx.eval_str(&line) {
-            Ok(v)  => println!("{:?}", Green.paint(v)),
+            Ok(v)  => println!("{}", Green.paint(ctx.format_value(&v))),
             Err(e) => println!("{:?}", Red.paint(e))
         }
     }

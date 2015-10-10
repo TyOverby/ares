@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub struct Symbol {
-    id: u32
-}
+pub struct Symbol(u32);
 
 #[derive(Debug)]
 pub struct SymbolIntern {
@@ -22,7 +20,7 @@ impl SymbolIntern {
     }
 
     pub fn gen_sym(&mut self) -> Symbol {
-        let ret = Symbol { id: self.current_id };
+        let ret = Symbol(self.current_id);
         self.current_id += 1;
         ret
     }
@@ -41,7 +39,8 @@ impl SymbolIntern {
 
     pub fn gen_sym_prefix<S: AsRef<str> + Into<String>>(&mut self, prefix: S) -> Symbol {
         let sym = self.gen_sym();
-        let sym_str = format!("{}{}", prefix.as_ref(), sym.id);
+        let Symbol(id) = sym;
+        let sym_str = format!("{}{}", prefix.as_ref(), id);
         self.sym_to_string.insert(sym, sym_str.clone());
         self.string_to_sym.insert(sym_str, sym);
         sym
@@ -59,8 +58,10 @@ impl SymbolIntern {
         self.sym_to_string.get(&symbol).map(|s| &s[..])
     }
 
-    pub fn lookup_or_unknown(&self, symbol: Symbol) -> &str {
-        self.lookup(symbol).unwrap_or("<unknown symbol>")
+    pub fn lookup_or_anon(&self, symbol: Symbol) -> String {
+        let Symbol(id) = symbol;
+        self.lookup(symbol).map(|s| s.into())
+            .unwrap_or_else(|| format!("s{}", id))
     }
 }
 

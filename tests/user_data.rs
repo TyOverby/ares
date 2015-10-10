@@ -19,7 +19,6 @@ fn user_data() {
     let mut ctx = ctx.load(&mut dummy);
 
     let tup = ctx.eval_str("(ret-tuple)").unwrap();
-    println!("tup");
     match tup {
         Value::UserData(data) => {
             assert!(data.is::<(u32, &'static str)>());
@@ -40,7 +39,6 @@ fn user_err() {
     let mut ctx = ctx.load(&mut dummy);
 
     let tup = ctx.eval_str("(ret-tuple)").unwrap_err();
-    println!("tup");
     match tup {
         AresError::UserError(data) => {
             assert!(data.is::<(u32, &'static str)>());
