@@ -66,6 +66,7 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("apply", user_fn("apply", self::core::apply));
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
     ctx.set_fn("quasiquote", ast_fn("quasiquote", self::core::quasiquote));
+    ctx.set_fn("macroexpand", user_fn("macroexpand", self::core::macroexpand));
     ctx.set_fn("unquote", ast_fn("unquote", self::core::unquote_error));
     ctx.set_fn("unquote-splicing", ast_fn("unquote-splicing", self::core::unquote_error));
     ctx.set_fn("if", ast_fn("if", self::core::cond));

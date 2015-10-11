@@ -137,9 +137,11 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
                         build_buf(v, buf, seen, interner);
                         buf.push_str(", ");
                     }
-                    // remove trailing comma ans space
-                    buf.pop();
-                    buf.pop();
+                    // remove trailing comma and space
+                    if vec.len() >= 1 {
+                        buf.pop();
+                        buf.pop();
+                    }
                     buf.push_str("]");
                 }
             }

@@ -45,6 +45,8 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
         },
         &Value::Lambda(_, true) => Err(AresError::MacroReference),
 
+        &Value::Lambda(_, true) => Err(AresError::MacroReference),
+
         &ref v => Ok(v.clone())
     }
 }

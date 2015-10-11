@@ -1,0 +1,18 @@
+(define-macro when-let (lambda (nm tst then)
+  (let (testval (gensym))
+     `(let (~testval ~tst)
+        (if ~testval
+           (let (~nm ~testval) ~then)
+           '())))))
+
+(define-macro begin (lambda forms `((lambda () ~@forms))))
+
+(when-let x (begin (print 1) true) (print x))
+(print (when-let x false "not this"))
+(define-macro unless (lambda (cod then) `(if ~cod '() (begin ~@then))))
+(print (macroexpand '(unless false ((begin 4 5)))))
+===============================
+1
+true
+[]
+['if, false, ['quote, []], [['lambda, [], [['lambda, [], 4, 5]]]]]
