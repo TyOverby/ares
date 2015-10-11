@@ -111,10 +111,15 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         eval(value, self, false)
     }
 
+    pub fn macroexpand(&mut self, value: &Value) -> AresResult<Value> {
+        Ok(value.clone())
+    }
+
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
         let trees = try!(parse(program, &mut self.interner));
         let mut last = None;
         for tree in trees {
+            let tree = try!(self.macroexpand(&tree));
             last = Some(try!(self.eval(&tree)))
         }
         match last {

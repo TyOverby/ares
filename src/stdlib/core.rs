@@ -111,10 +111,12 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
                 None,
                 Rc::new(bodies),
                 param_names,
-                ctx.env().clone())))
+                ctx.env().clone()),
+        false))
 }
 
-pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+fn define_helper<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) 
+                                        -> AresResult<(Symbol, Value)> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
         &Value::Symbol(s) => s,
@@ -130,9 +132,56 @@ pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
 
     let value = &args[1];
     let result = try!(ctx.eval(value));
+    Ok((name, result))
+}
 
-    ctx.env().borrow_mut().insert_here(name, result.clone());
-    Ok(result)
+
+pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    let (name, value) = try!(define_helper(args, ctx));
+    ctx.env().borrow_mut().insert_here(name, value.clone());
+    Ok(value)
+}
+
+pub fn define_macro<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    let (name, value) = try!(define_helper(args, ctx));
+    let procedure = match value {
+        Value::Lambda(p, _) => p.clone(),
+        other => {
+            return Err(AresError::UnexpectedType {
+                value: other,
+                expected: "Lambda".into()
+            })
+        }
+    };
+    let mac = Value::Lambda(procedure, true);
+    ctx.env().borrow_mut().insert_here(name, mac.clone());
+    Ok(mac)
+}
+
+pub fn macroexpand<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    match &args[0] {
+        &Value::List(ref lst) => { 
+            if lst.len() == 0 {
+                return Ok(Value::List(lst.clone()))
+            }
+            match &lst[0] {
+                &Value::Symbol(s) => {
+                    let v = ctx.env().borrow().get(s);
+                    match v {
+                        Some(v@Value::Lambda(_, true)) => {
+                            let macro_out = try!(ctx.call(&v, &lst[1..lst.len()]));
+                            let one_pass = try!(ctx.eval(&macro_out));
+                            macroexpand(&[one_pass], ctx)
+                        }
+                        _ => Ok(Value::List(lst.clone()))
+                    }
+                },
+                _ => Ok(Value::List(lst.clone()))
+            }
+        },
+        other => Ok(other.clone())
+    }
 }
 
 pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {

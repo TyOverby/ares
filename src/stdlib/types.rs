@@ -10,7 +10,7 @@ macro_rules! gen_is_type {
     ($name: ident, $p: ident) => {
         pub fn $name(values: &[Value]) -> AresResult<Value> {
             for item in values {
-                if let &Value::$p(_) = item {
+                if let &Value::$p(..) = item {
                 } else {
                     return Ok(false.into())
                 }
@@ -32,7 +32,7 @@ gen_is_type!(is_foreign_fn, ForeignFn);
 pub fn is_executable(values: &[Value]) -> AresResult<Value> {
     for item in values {
         match item {
-            &Value::Lambda(_) => {},
+            &Value::Lambda(_, _) => {},
             &Value::ForeignFn(_) => {},
             _ => return Ok(false.into())
         }
@@ -120,7 +120,7 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
         &Value::String(ref s) => (&**s).clone(),
         &Value::Bool(b) => format!("{}", b),
         &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
-        &Value::Lambda(ref l) =>
+        &Value::Lambda(ref l, _) =>
             format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
         &Value::Symbol(s) => format!("'{}", interner.lookup_or_anon(s)),

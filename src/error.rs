@@ -23,6 +23,7 @@ pub enum AresError {
     UndefinedName(String),
     InvalidState(String),
     InvalidUnquotation,
+    MacroReference,
 
     // TODO: NoNamedSet, NoValuedSet
     NoNameSet,
