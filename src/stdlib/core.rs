@@ -115,7 +115,7 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
         false))
 }
 
-fn define_helper<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) 
+fn define_helper<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                                         -> AresResult<(Symbol, Value)> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
@@ -160,28 +160,31 @@ pub fn define_macro<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S
 
 pub fn macroexpand<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
-    match &args[0] {
-        &Value::List(ref lst) => { 
-            if lst.len() == 0 {
-                return Ok(Value::List(lst.clone()))
-            }
-            match &lst[0] {
-                &Value::Symbol(s) => {
-                    let v = ctx.env().borrow().get(s);
-                    match v {
-                        Some(v@Value::Lambda(_, true)) => {
-                            let macro_out = try!(ctx.call(&v, &lst[1..lst.len()]));
-                            let one_pass = try!(ctx.eval(&macro_out));
-                            macroexpand(&[one_pass], ctx)
+    let mut walk_f = |value: &Value| {
+        match value {
+            &Value::List(ref lst) => {
+                if lst.len() == 0 {
+                    return Ok((Value::List(lst.clone()), false))
+                };
+                match &lst[0] {
+                    &Value::Symbol(s) => {
+                        let v = ctx.env().borrow().get(s);
+                        match v {
+                            Some(v@Value::Lambda(_, true)) => {
+                                let macro_out = try!(ctx.call(&v, &lst[1..lst.len()]));
+                                let finished = try!(macroexpand(&[macro_out], ctx));
+                                Ok((finished, true))
+                            }
+                            _ => Ok((value.clone(), true))
                         }
-                        _ => Ok(Value::List(lst.clone()))
-                    }
-                },
-                _ => Ok(Value::List(lst.clone()))
-            }
-        },
-        other => Ok(other.clone())
-    }
+                    },
+                    _ => Ok((value.clone(), true))
+                }
+            },
+            other => Ok((other.clone(), false))
+        }
+    };
+    walk(&args[0], &mut walk_f)
 }
 
 pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
