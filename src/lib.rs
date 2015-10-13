@@ -68,6 +68,7 @@ impl Value {
     }
 }
 
+gen_from!(intern::Symbol, Value::Symbol, |a| a);
 gen_from!(u8, Value::Int, |a| a as i64);
 gen_from!(i8, Value::Int, |a| a as i64);
 gen_from!(u16, Value::Int, |a| a as i64);

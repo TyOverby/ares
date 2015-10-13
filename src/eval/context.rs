@@ -59,7 +59,7 @@ impl <S: State + ?Sized> Context<S> {
         }
     }
 
-    pub fn get<N: AsRef<str>>(&self, name: &N) -> Option<Value> {
+    pub fn get<N: ?Sized + AsRef<str>>(&self, name: &N) -> Option<Value> {
         if let Some(symbol) = self.interner.symbol_for_name(name) {
             self.env.borrow_mut().get(symbol)
         } else {
@@ -127,7 +127,7 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         apply(func, &args[..], self)
     }
 
-    pub fn call_named<N: AsRef<str>>(&mut self, named_fn: &N, args: &[Value]) -> AresResult<Value> {
+    pub fn call_named<N: ?Sized + AsRef<str>>(&mut self, named_fn: &N, args: &[Value]) -> AresResult<Value> {
         let func = self.get(named_fn);
         match func {
             Some(v) => self.call(&v, args),

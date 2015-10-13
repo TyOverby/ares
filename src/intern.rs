@@ -46,7 +46,7 @@ impl SymbolIntern {
         sym
     }
 
-    pub fn symbol_for_name<S: AsRef<str>>(&self, symbol_str: &S) -> Option<Symbol> {
+    pub fn symbol_for_name<S: ?Sized + AsRef<str>>(&self, symbol_str: &S) -> Option<Symbol> {
         self.string_to_sym.get(symbol_str.as_ref()).cloned()
     }
 

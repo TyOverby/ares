@@ -48,6 +48,12 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
 
 pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value>
 {
+    for arg in args {
+        if let &Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..}) = arg {
+            return Err(AresError::AstFunctionPass);
+        }
+    }
+
     match func.clone() {
         Value::Lambda(procedure) => {
             let mut new_env = procedure.gen_env(args.iter().cloned());

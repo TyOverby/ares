@@ -5,6 +5,7 @@ use ::parse::ParseError;
 
 pub type AresResult<T> = Result<T, AresError>;
 
+// TODO: this should derive Eq
 #[derive(Debug)]
 pub enum AresError {
     ParseError(ParseError),
