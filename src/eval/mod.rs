@@ -1,7 +1,7 @@
 use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
-pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn, user_fn};
+pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn, user_fn, FfType};
 pub use self::procedure::{Procedure, ParamBinding};
 pub use self::context::{Context, LoadedContext, State};
 
@@ -10,10 +10,13 @@ mod foreign_function;
 mod procedure;
 mod context;
 
-pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<Value> {
     match value {
         &Value::Symbol(symbol) => {
             match ctx.env().borrow().get(symbol) {
+                Some(Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..})) if !proc_head => {
+                    Err(AresError::AstFunctionPass)
+                }
                 Some(v) => Ok(v),
                 None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol)))
             }
@@ -26,7 +29,7 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> Are
             };
             let items = &items[1..];
 
-            match try!(eval(head, ctx)) {
+            match try!(eval(head, ctx, true)) {
                 f@Value::Lambda(_) => {
                     let evald: AresResult<Vec<Value>> = items.iter().map(|v| ctx.eval(v)).collect();
                     let evald = try!(evald);
@@ -39,9 +42,7 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> Are
                 x => Err(AresError::UnexecutableValue(x))
             }
         },
-
         &ref v => Ok(v.clone())
-
     }
 }
 

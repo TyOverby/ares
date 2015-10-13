@@ -13,7 +13,6 @@ fn convert_to_int() {
     eval_ok!("(->int false)", 0);
 
     eval_err!("(->int (lambda (a) a))", IllegalConversion{..});
-    eval_err!("(->int define)", IllegalConversion{..});
     eval_err!("(->int 5 5)", UnexpectedArity{..})
 }
 
@@ -25,7 +24,6 @@ fn convert_to_float() {
     eval_ok!("(->float \"10.5\")", 10.5);
 
     eval_err!("(->float (lambda (a) a))", IllegalConversion{..});
-    eval_err!("(->float define)", IllegalConversion{..});
     eval_err!("(->float 5 5)", UnexpectedArity{..})
 }
 

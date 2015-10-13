@@ -5,12 +5,20 @@ use ::{Value, AresResult, rc_to_usize, write_usize, State};
 
 use super::context::LoadedContext;
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum FfType {
+    Free,
+    User,
+    Ast,
+}
+
 #[derive(Clone)]
 pub struct ForeignFunction<S: State + ?Sized> {
     pub name: String,
+    pub typ: FfType,
     #[doc(hidden)]
     pub function: Rc<Fn(&[Value], &mut LoadedContext<S>) -> AresResult<Value>>,
-    typeid: TypeId
+    typeid: TypeId,
 }
 
 impl <S: State + ?Sized> ForeignFunction<S> {
@@ -45,7 +53,8 @@ where N: Into<String>,
     ForeignFunction {
         name: name.into(),
         function: boxed,
-        typeid: TypeId::of::<S>()
+        typeid: TypeId::of::<S>(),
+        typ: FfType::Free
     }
 }
 
@@ -63,7 +72,8 @@ where N: Into<String>,
     ForeignFunction {
         name: name.into(),
         function: boxed,
-        typeid: TypeId::of::<S>()
+        typeid: TypeId::of::<S>(),
+        typ: FfType::User,
     }
 }
 
@@ -76,7 +86,8 @@ where N: Into<String>,
     ForeignFunction {
         name: name.into(),
         function: boxed,
-        typeid: TypeId::of::<S>()
+        typeid: TypeId::of::<S>(),
+        typ: FfType::Ast
     }
 }
 

@@ -108,7 +108,7 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
     }
 
     pub fn eval(&mut self, value: &Value) -> AresResult<Value> {
-        eval(value, self)
+        eval(value, self, false)
     }
 
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
