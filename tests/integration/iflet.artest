@@ -10,9 +10,11 @@
 (when-let x (begin (print 1) true) (print x))
 (print (when-let x false "not this"))
 (define-macro unless (lambda (cod then) `(if ~cod '() (begin ~@then))))
+(print '(unless false ((begin 4 5))))
 (print (macroexpand '(unless false ((begin 4 5)))))
 ===============================
 1
 true
 []
+['unless, false, [['begin, 4, 5]]]
 ['if, false, ['quote, []], [['lambda, [], [['lambda, [], 4, 5]]]]]

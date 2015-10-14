@@ -186,6 +186,7 @@ pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
 
 pub fn macroexpand<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    let quote = ctx.interner_mut().intern("quote");  // this should really be handled better...
     let mut walk_f = |value: &Value| {
         match value {
             &Value::List(ref lst) => {
@@ -193,6 +194,7 @@ pub fn macroexpand<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>
                     return Ok((Value::List(lst.clone()), false))
                 };
                 match &lst[0] {
+                    &Value::Symbol(s) if s == quote => Ok((value.clone(), false)),
                     &Value::Symbol(s) => {
                         let v = ctx.env().borrow().get(s);
                         match v {
