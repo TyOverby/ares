@@ -43,7 +43,6 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
                 x => Err(AresError::UnexecutableValue(x))
             }
         },
-        &Value::Lambda(_, true) => Err(AresError::MacroReference),
 
         &Value::Lambda(_, true) => Err(AresError::MacroReference),
 
