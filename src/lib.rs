@@ -49,7 +49,7 @@ pub enum Value {
 
     Symbol(intern::Symbol),
     ForeignFn(ForeignFunction<()>),
-    Lambda(Procedure),
+    Lambda(Procedure, bool),
 
     UserData(Rc<Any>)
 }
@@ -118,7 +118,7 @@ impl PartialEq for Value {
             (&Bool(b1), &Bool(b2)) => b1 == b2,
             (&Symbol(ref id1), &Symbol(ref id2)) => id1 == id2,
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
-            (&Lambda(ref l1), &Lambda(ref l2)) => l1 == l2,
+            (&Lambda(ref l1, b1), &Lambda(ref l2, b2)) => l1 == l2 && b1 == b2,
             (&Map(ref m1), &Map(ref m2)) => m1 == m2,
             (&UserData(ref u1), &UserData(ref u2)) =>
                 rc_to_usize(u1) == rc_to_usize(u2),
@@ -140,7 +140,8 @@ impl std::hash::Hash for Value {
             &Value::Bool(b) => state.write(&[if b {1} else {0}]),
             &Value::Symbol(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
-            &Value::Lambda(ref p) => p.hash(state),
+            &Value::Lambda(ref p, ref b) => { p.hash(state); b
+.hash(state) },
             &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),
             &Value::Map(_) => unimplemented!()  // hashmap not hashable.
         }

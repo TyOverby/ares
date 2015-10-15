@@ -30,7 +30,8 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
             let items = &items[1..];
 
             match try!(eval(head, ctx, true)) {
-                f@Value::Lambda(_) => {
+                Value::Lambda(_, true) => Err(AresError::MacroReference),
+                f@Value::Lambda(_, _) => {
                     let evald: AresResult<Vec<Value>> = items.iter().map(|v| ctx.eval(v)).collect();
                     let evald = try!(evald);
                     apply(&f, &evald[..], ctx)
@@ -42,6 +43,9 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
                 x => Err(AresError::UnexecutableValue(x))
             }
         },
+
+        &Value::Lambda(_, true) => Err(AresError::MacroReference),
+
         &ref v => Ok(v.clone())
     }
 }
@@ -55,7 +59,7 @@ pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut Load
     }
 
     match func.clone() {
-        Value::Lambda(procedure) => {
+        Value::Lambda(procedure, _) => {
             let mut new_env = procedure.gen_env(args.iter().cloned());
             ctx.with_other_env(&mut new_env, |ctx| {
                 let mut last = None;

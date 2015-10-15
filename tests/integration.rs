@@ -10,6 +10,7 @@ pub fn integration_tests() {
     run_test("values");
     run_test("fib");
     run_test("factorial");
+    run_test("iflet");
 }
 
 fn get_lines(contents: String) -> (String, Vec<String>) {

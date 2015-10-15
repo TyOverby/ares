@@ -7,6 +7,7 @@ use std::any::Any;
 use super::{Env, eval, apply};
 use ::{Value, AresResult, AresError, parse, stdlib, Environment, ForeignFunction};
 use ::intern::SymbolIntern;
+use stdlib::core::macroexpand;
 
 pub struct Context<S: State + ?Sized> {
     env: Env,
@@ -111,10 +112,15 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         eval(value, self, false)
     }
 
+    pub fn macroexpand(&mut self, value: Value) -> AresResult<Value> {
+        macroexpand(&[value], self)
+    }
+
     pub fn eval_str(&mut self, program: &str) -> AresResult<Value> {
         let trees = try!(parse(program, &mut self.interner));
         let mut last = None;
         for tree in trees {
+            let tree = try!(self.macroexpand(tree));
             last = Some(try!(self.eval(&tree)))
         }
         match last {

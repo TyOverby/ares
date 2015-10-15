@@ -111,10 +111,12 @@ pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
                 None,
                 Rc::new(bodies),
                 param_names,
-                ctx.env().clone())))
+                ctx.env().clone()),
+        false))
 }
 
-pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+fn define_helper<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
+                                        -> AresResult<(Symbol, Value)> {
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let name = match &args[0] {
         &Value::Symbol(s) => s,
@@ -130,9 +132,87 @@ pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
 
     let value = &args[1];
     let result = try!(ctx.eval(value));
+    Ok((name, result))
+}
 
-    ctx.env().borrow_mut().insert_here(name, result.clone());
-    Ok(result)
+
+pub fn define<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    let (name, value) = try!(define_helper(args, ctx));
+    ctx.env().borrow_mut().insert_here(name, value.clone());
+    Ok(value)
+}
+
+pub fn define_macro<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    let (name, value) = try!(define_helper(args, ctx));
+    let procedure = match value {
+        Value::Lambda(p, _) => p.clone(),
+        other => {
+            return Err(AresError::UnexpectedType {
+                value: other,
+                expected: "Lambda".into()
+            })
+        }
+    };
+    let mac = Value::Lambda(procedure, true);
+    ctx.env().borrow_mut().insert_here(name, mac.clone());
+    Ok(mac)
+}
+
+pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
+    where F: FnMut(&Value) -> AresResult<(Value, bool)>
+{
+    let (v, recurse) = try!(f(value));
+    if recurse {
+        match v {
+            Value::List(v) => {
+                let result = try!(v.iter().map(|value| Ok(try!(walk(value, f)))).collect::<AresResult<Vec<Value>>>());
+                Ok(Value::list(result))
+            },
+            Value::Map(m) => {
+                let mut result = HashMap::with_capacity(m.len());
+                for (k, v) in m.iter() {
+                    let new_k = try!(walk(k, f));
+                    let new_v = try!(walk(v, f));
+                    result.insert(new_k, new_v);
+                }
+                Ok(Value::Map(Rc::new(result)))
+            },
+            v => Ok(v)
+        }
+    } else {
+        Ok(v)
+    }
+}
+
+pub fn macroexpand<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+    try!(expect_arity(args, |l| l == 1, "exactly 1"));
+    let quote = ctx.interner_mut().intern("quote");  // this should really be handled better...
+    let mut walk_f = |value: &Value| {
+        match value {
+            &Value::List(ref lst) => {
+                if lst.len() == 0 {
+                    return Ok((Value::List(lst.clone()), false))
+                };
+                match &lst[0] {
+                    &Value::Symbol(s) if s == quote => Ok((value.clone(), false)),
+                    &Value::Symbol(s) => {
+                        let v = ctx.env().borrow().get(s);
+                        match v {
+                            Some(v@Value::Lambda(_, true)) => {
+                                let macro_out = try!(ctx.call(&v, &lst[1..lst.len()]));
+                                let finished = try!(macroexpand(&[macro_out], ctx));
+                                Ok((finished, true))
+                            }
+                            _ => Ok((value.clone(), true))
+                        }
+                    },
+                    _ => Ok((value.clone(), true))
+                }
+            },
+            other => Ok((other.clone(), false))
+        }
+    };
+    walk(&args[0], &mut walk_f)
 }
 
 pub fn set<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
@@ -190,32 +270,6 @@ pub fn gensym<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> 
     Ok(Value::Symbol(symbol))
 }
 
-pub fn walk<F>(value: &Value, f: &mut F) -> AresResult<Value>
-    where F: FnMut(&Value) -> AresResult<(Value, bool)>
-{
-    let (v, recurse) = try!(f(value));
-    if recurse {
-        match v {
-            Value::List(v) => {
-                let result = try!(v.iter().map(|value| Ok(try!(walk(value, f)))).collect::<AresResult<Vec<Value>>>());
-                Ok(Value::list(result))
-            },
-            Value::Map(m) => {
-                let mut result = HashMap::with_capacity(m.len());
-                for (k, v) in m.iter() {
-                    let new_k = try!(walk(k, f));
-                    let new_v = try!(walk(v, f));
-                    result.insert(new_k, new_v);
-                }
-                Ok(Value::Map(Rc::new(result)))
-            },
-            v => Ok(v)
-        }
-    } else {
-        Ok(v)
-    }
-}
-
 pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 1, "exactly 1"));
     let unquote = Value::Symbol(ctx.interner_mut().intern("unquote"));
@@ -226,7 +280,7 @@ pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                 if lst.len() >= 1 && lst[0] == unquote_splicing {
                     return Err(AresError::InvalidUnquotation)
                 } else if lst.len() == 2 && lst[0] == unquote {
-                    return Ok((try!(ctx.eval(&lst[1])), false))
+                    return Ok(try!(ctx.eval(&lst[1])))
                 }
                 let mut new_v = vec![];
                 for elem in lst.iter() {
@@ -244,18 +298,19 @@ pub fn quasiquote<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                                     })
                                 }
                             } else {
-                                new_v.push(elem.clone())
+                                let r = try!(quasiquote(&[elem.clone()], ctx));
+                                new_v.push(r);
                             }
                         },
                         elem => new_v.push(elem.clone())
                     }
                 }
-                Ok((Value::list(new_v), true))
+                Ok(Value::list(new_v))
             },
-            _ => Ok((v.clone(), false))
+            _ => Ok(v.clone())
         }
     };
-    walk(&args[0], &mut walk_f)
+    walk_f(&args[0])
 }
 
 pub fn unquote_error<S: State + ?Sized>(_args: &[Value], _ctx: &mut LoadedContext<S>) -> AresResult<Value> {
