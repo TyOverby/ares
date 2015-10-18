@@ -104,6 +104,17 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         r
     }
 
+    pub fn with_other_state<F, R>(&mut self, state: &mut S, f: F) -> R
+    where F: FnOnce(&mut LoadedContext<'a, S>) -> R {
+        use std::mem::{swap, transmute};
+        // This is safe because the state gets immeditately swapped back out.
+        let mut state: &'a mut S = unsafe { transmute(state) };
+        swap(&mut self.state, &mut state);
+        let r = f(self);
+        swap(&mut self.state, &mut state);
+        r
+    }
+
     pub fn state(&mut self) -> &mut S {
         self.state
     }
