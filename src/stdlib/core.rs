@@ -83,21 +83,49 @@ pub fn apply<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> A
 
 pub fn lambda<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
     try!(expect_arity(args, |l| l >= 2, "at least 2"));
+    let dot = ctx.interner_mut().intern(".");
     let param_names = match &args[0] {
         &Value::List(ref v) => {
-            let r: AresResult<Vec<Symbol>> = v.iter().map(|n| {
+            let mut params = vec![];
+            let mut rest = None;
+            let mut seen_dot = false;
+            try!(v.iter().map(|n| {
                 match n {
-                    &Value::Symbol(s) => Ok(s),
+                    &Value::Symbol(s) if s == dot => {
+                        if seen_dot {
+                            Err(AresError::UnexpectedArgsList(args[0].clone()))
+                        } else {
+                            seen_dot = true;
+                            Ok(())
+                        }
+                    },
+                    &Value::Symbol(s) => {
+                        if seen_dot {
+                            match rest {
+                                None => { rest = Some(s); Ok(()) },
+                                Some(_) => Err(AresError::UnexpectedArgsList(args[0].clone()))
+                            }
+                        } else {
+                            params.push(s);
+                            Ok(())
+                        }
+                    },
                     &ref other => Err(AresError::UnexpectedType {
                         value: other.clone(),
                         expected: "Symbol".into()
                     })
                 }
-            }).collect();
-            ParamBinding::ParamList(try!(r))
+            }).collect::<AresResult<Vec<()>>>());
+            ParamBinding {
+                params: params,
+                rest: rest
+            }
         }
         &Value::Symbol(s) => {
-            ParamBinding::SingleIdent(s)
+            ParamBinding {
+                params: vec![],
+                rest: Some(s)
+            }
         }
         x => {
             return Err(AresError::UnexpectedArgsList(x.clone()));
