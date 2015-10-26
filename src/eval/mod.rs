@@ -60,7 +60,7 @@ pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut Load
 
     match func.clone() {
         Value::Lambda(procedure, _) => {
-            let mut new_env = procedure.gen_env(args.iter().cloned());
+            let mut new_env = try!(procedure.gen_env(args.iter().cloned()));
             ctx.with_other_env(&mut new_env, |ctx| {
                 let mut last = None;
                 for body in &*procedure.bodies {

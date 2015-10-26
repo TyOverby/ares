@@ -1,4 +1,6 @@
 extern crate ares;
+use ares::AresError::*;
+use std::vec::Vec;
 
 #[macro_use]
 mod util;
@@ -43,4 +45,17 @@ fn recursive() {
 #[test]
 fn list_params() {
     eval_ok!("((lambda l l) 1 2 3)", vec![1, 2, 3]);
+}
+
+#[test]
+fn rest_params() {
+    eval_ok!("((lambda (. rest) rest) 1 2 3)", vec![1, 2, 3]);
+    eval_ok!("((lambda (x . rest) rest) 1 2 3)", vec![2, 3]);
+    eval_ok!("((lambda (x y . rest) rest) 1 2 3)", vec![3]);
+    eval_ok!("((lambda (x y z . rest) rest) 1 2 3)", Vec::<ares::Value>::new());
+    eval_err!("((lambda (x y z . rest) rest) 1 2)", UnexpectedArity{..});
+    eval_ok!("((lambda (x y . rest) (concat [x y] rest)) 1 2 3)", vec![1, 2, 3]);
+    eval_err!("(lambda (x y . rest . rest2) rest)", UnexpectedArgsList(..));
+    eval_err!("(lambda (x y . rest rest2) rest)", UnexpectedArgsList(..));
+    eval_err!("(lambda (x y . .) rest)", UnexpectedArgsList(..));
 }
