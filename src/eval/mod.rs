@@ -10,7 +10,56 @@ mod foreign_function;
 mod procedure;
 mod context;
 
-pub fn eval<S: State + ?Sized>(value: &Value,
+#[derive(Debug)]
+pub enum StepState {
+    EvalThis(Value),
+    Return,
+    Complete(Value)
+}
+
+pub fn eval<S: ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<Value>
+where S: State
+{
+    let value = value.clone();
+
+    ctx.stack.push(StepState::Return);
+    ctx.stack.push(StepState::EvalThis(value));
+
+    let len = ctx.stack.len();
+    try!(step_eval(ctx, proc_head));
+    while ctx.stack.len() > len {
+        try!(step_eval(ctx, proc_head));
+    }
+
+    let result = ctx.stack.pop().unwrap();
+    let ret = ctx.stack.pop().unwrap();
+    match (ret, result) {
+        (StepState::Return, StepState::Complete(value)) => {
+            Ok(value)
+        }
+        (res, r) => panic!("eval(..): invalid stack state [..., {:?}, {:?}]", r, res),
+    }
+}
+
+fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<()> {
+    let top = ctx.stack.pop().unwrap();
+    if let StepState::Complete(value) = top {
+        let what = ctx.stack.pop().unwrap();
+
+    } else {
+        match top {
+            StepState::EvalThis(value) => {
+                let result = try!(eval_this(&value, ctx, proc_head));
+                ctx.stack.push(StepState::Complete(result));
+            }
+            StepState::Complete(_) => unreachable!(),
+            a@StepState::Return => panic!("step_eval(..): invalid stack state: [..., {:?}]", a)
+        }
+    }
+    Ok(())
+}
+
+fn eval_this<S: State + ?Sized>(value: &Value,
                                ctx: &mut LoadedContext<S>,
                                proc_head: bool)
                                -> AresResult<Value> {
