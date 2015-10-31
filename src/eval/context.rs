@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::any::Any;
 
-use super::{Env, eval, apply};
+use super::{Env, eval, apply, StepState};
 use {Value, AresResult, AresError, parse, stdlib, Environment, ForeignFunction};
 use intern::SymbolIntern;
 use stdlib::core::macroexpand;
@@ -18,6 +18,7 @@ pub struct Context<S: State + ?Sized> {
 pub struct LoadedContext<'a, S: State + ?Sized> {
     ctx: &'a mut Context<S>,
     state: &'a mut S,
+    pub stack: Vec<StepState>
 }
 
 pub trait State: Any {}
@@ -57,6 +58,7 @@ impl <S: State + ?Sized> Context<S> {
         LoadedContext {
             ctx: self,
             state: state,
+            stack: vec![]
         }
     }
 
