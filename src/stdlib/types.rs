@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use ::{Value, AresResult, AresError, rc_to_usize, State, LoadedContext};
-use ::intern::SymbolIntern;
+use {Value, AresResult, AresError, rc_to_usize, State, LoadedContext};
+use intern::SymbolIntern;
 use super::util::expect_arity;
 
 macro_rules! gen_is_type {
@@ -32,9 +32,9 @@ gen_is_type!(is_foreign_fn, ForeignFn);
 pub fn is_executable(values: &[Value]) -> AresResult<Value> {
     for item in values {
         match item {
-            &Value::Lambda(_, _) => {},
-            &Value::ForeignFn(_) => {},
-            _ => return Ok(false.into())
+            &Value::Lambda(_, _) => {}
+            &Value::ForeignFn(_) => {}
+            _ => return Ok(false.into()),
         }
     }
 
@@ -48,12 +48,16 @@ pub fn to_int(values: &[Value]) -> AresResult<Value> {
     let res = match values.first().unwrap() {
         &Value::Int(i) => Ok(Value::Int(i)),
         &Value::Float(f) => Ok(Value::Int(f as i64)),
-        &Value::Bool(b) => Ok(Value::Int(if b {1} else {0})),
+        &Value::Bool(b) => Ok(Value::Int(if b {
+            1
+        } else {
+            0
+        })),
         &Value::String(ref s) => Ok(Value::Int(s.parse().unwrap())),
         other => Err(AresError::IllegalConversion {
             value: other.clone(),
-            into: "Int".to_string()
-        })
+            into: "Int".to_string(),
+        }),
     };
 
     res
@@ -68,8 +72,8 @@ pub fn to_float(values: &[Value]) -> AresResult<Value> {
         &Value::String(ref s) => Ok(Value::Float(s.parse().unwrap())),
         other => Err(AresError::IllegalConversion {
             value: other.clone(),
-            into: "Float".to_string()
-        })
+            into: "Float".to_string(),
+        }),
     };
     res
 }
@@ -90,22 +94,24 @@ pub fn to_bool(values: &[Value]) -> AresResult<Value> {
             } else if &**s == "false" {
                 Ok(Value::Bool(false))
             } else {
-                Err(AresError::IllegalConversion{
+                Err(AresError::IllegalConversion {
                     value: Value::String(s.clone()),
-                    into: "Bool".to_string()
+                    into: "Bool".to_string(),
                 })
             }
         }
         other => Err(AresError::IllegalConversion {
             value: other.clone(),
-            into: "Bool".to_string()
-        })
+            into: "Bool".to_string(),
+        }),
     };
 
     res
 }
 
-pub fn to_string<S: State + ?Sized>(values: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+pub fn to_string<S: State + ?Sized>(values: &[Value],
+                                    ctx: &mut LoadedContext<S>)
+                                    -> AresResult<Value> {
     try!(expect_arity(values, |l| l == 1, "exactly 1"));
     let first = values.first().unwrap();
     let s = to_string_helper(&first, ctx.interner());
@@ -120,13 +126,16 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
         &Value::String(ref s) => (&**s).clone(),
         &Value::Bool(b) => format!("{}", b),
         &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
-        &Value::Lambda(ref l, _) =>
-            format!("<@{}>", l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
+        &Value::Lambda(ref l, _) => format!("<@{}>",
+                                            l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),
         &Value::UserData(ref u) => format!("UserData@{}", rc_to_usize(u)),
         &Value::Symbol(s) => format!("'{}", interner.lookup_or_anon(s)),
 
         &ref l@Value::List(_) | &ref l@Value::Map(_) => {
-            fn format_singles(vec: &Rc<Vec<Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
+            fn format_singles(vec: &Rc<Vec<Value>>,
+                              buf: &mut String,
+                              seen: &mut HashSet<usize>,
+                              interner: &SymbolIntern) {
                 let ptr = rc_to_usize(vec);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
@@ -145,7 +154,10 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
                     buf.push_str("]");
                 }
             }
-            fn format_pairs(m: &Rc<HashMap<Value, Value>>, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
+            fn format_pairs(m: &Rc<HashMap<Value, Value>>,
+                            buf: &mut String,
+                            seen: &mut HashSet<usize>,
+                            interner: &SymbolIntern) {
                 let ptr = rc_to_usize(m);
                 if seen.contains(&ptr) {
                     buf.push_str("...")
@@ -160,11 +172,14 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
                     buf.push_str("}")
                 }
             }
-            fn build_buf(cur: &Value, buf: &mut String, seen: &mut HashSet<usize>, interner: &SymbolIntern) {
+            fn build_buf(cur: &Value,
+                         buf: &mut String,
+                         seen: &mut HashSet<usize>,
+                         interner: &SymbolIntern) {
                 match cur {
                     &Value::List(ref v) => format_singles(v, buf, seen, interner),
                     &Value::Map(ref m) => format_pairs(m, buf, seen, interner),
-                    other => buf.push_str(&to_string_helper(&other, interner))
+                    other => buf.push_str(&to_string_helper(&other, interner)),
                 }
             }
             let mut inner = String::new();

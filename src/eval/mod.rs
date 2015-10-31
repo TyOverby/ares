@@ -10,7 +10,10 @@ mod foreign_function;
 mod procedure;
 mod context;
 
-pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<Value> {
+pub fn eval<S: State + ?Sized>(value: &Value,
+                               ctx: &mut LoadedContext<S>,
+                               proc_head: bool)
+                               -> AresResult<Value> {
     match value {
         &Value::Symbol(symbol) => {
             match ctx.env().borrow().get(symbol) {
@@ -18,14 +21,14 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
                     Err(AresError::AstFunctionPass)
                 }
                 Some(v) => Ok(v),
-                None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol)))
+                None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol))),
             }
-        },
+        }
 
         &Value::List(ref items) => {
             let head = match items.first() {
                 Some(h) => h,
-                None => return Err(AresError::ExecuteEmptyList)
+                None => return Err(AresError::ExecuteEmptyList),
             };
             let items = &items[1..];
 
@@ -38,20 +41,22 @@ pub fn eval<S: State + ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_h
                 }
 
                 f@Value::ForeignFn(_) => {
-                        apply(&f, items, ctx)
+                    apply(&f, items, ctx)
                 }
-                x => Err(AresError::UnexecutableValue(x))
+                x => Err(AresError::UnexecutableValue(x)),
             }
-        },
+        }
 
         &Value::Lambda(_, true) => Err(AresError::MacroReference),
 
-        &ref v => Ok(v.clone())
+        &ref v => Ok(v.clone()),
     }
 }
 
-pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value>
-{
+pub fn apply<'a, S: State + ?Sized>(func: &Value,
+                                    args: &[Value],
+                                    ctx: &mut LoadedContext<S>)
+                                    -> AresResult<Value> {
     for arg in args {
         if let &Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..}) = arg {
             return Err(AresError::AstFunctionPass);
@@ -74,6 +79,6 @@ pub fn apply<'a, S: State + ?Sized>(func: &Value, args: &[Value], ctx: &mut Load
             let corrected = try!(ff.correct::<S>().or(Err(AresError::InvalidForeignFunctionState)));
             (corrected.function)(args, ctx)
         }
-        other => Err(AresError::UnexecutableValue(other.clone()))
+        other => Err(AresError::UnexecutableValue(other.clone())),
     }
 }

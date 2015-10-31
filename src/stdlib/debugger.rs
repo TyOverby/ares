@@ -1,12 +1,14 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::cell::RefCell;
-use ::{Value, AresResult, LoadedContext, State, user_fn, free_fn, Environment};
-use ::util::prompt;
-use ::intern::Symbol;
+use {Value, AresResult, LoadedContext, State, user_fn, free_fn, Environment};
+use util::prompt;
+use intern::Symbol;
 use super::util::expect_arity;
 
-pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+pub fn debugger<S: State + ?Sized>(args: &[Value],
+                                   ctx: &mut LoadedContext<S>)
+                                   -> AresResult<Value> {
     try!(expect_arity(args, |l| l == 0, "exactly 0"));
 
     let result = Rc::new(RefCell::new(None));
@@ -20,7 +22,11 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
 
     let debugger_env = move |values: &[Value], ctx: &mut LoadedContext<S>| -> AresResult<Value> {
         try!(expect_arity(values, |l| l == 0, "exactly 0"));
-        let mut list: Vec<(Symbol, (u32, Value))> = ctx.env().borrow().all_defined().into_iter().collect();
+        let mut list: Vec<(Symbol, (u32, Value))> = ctx.env()
+                                                       .borrow()
+                                                       .all_defined()
+                                                       .into_iter()
+                                                       .collect();
         // Invert the sort
         list.sort_by(|a, b| (b.1).0.cmp(&(a.1).0));
 
@@ -36,8 +42,11 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
         Ok(false.into())
     };
 
-    let debugger_close: Value = Value::ForeignFn(free_fn::<S, _, _>("debugger-close", debugger_close).erase());
-    let debugger_env: Value = Value::ForeignFn(user_fn::<S, _, _>("debugger-env", debugger_env).erase());
+    let debugger_close: Value = Value::ForeignFn(free_fn::<S, _, _>("debugger-close",
+                                                                    debugger_close)
+                                                     .erase());
+    let debugger_env: Value = Value::ForeignFn(user_fn::<S, _, _>("debugger-env", debugger_env)
+                                                   .erase());
     let mut mapping = HashMap::new();
     mapping.insert(ctx.interner_mut().intern("debugger-close"), debugger_close);
     mapping.insert(ctx.interner_mut().intern("debugger-env"), debugger_env);
@@ -47,14 +56,14 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
         while result.borrow().is_none() {
             let line = match prompt("debugger> ") {
                 Some(line) => line,
-                None => break
+                None => break,
             };
 
             let res = ctx.eval_str(&line);
             if result.borrow().is_none() {
                 match res {
-                    Ok(v)  => println!("{:?}", v),
-                    Err(e) => println!("{:?}", e)
+                    Ok(v) => println!("{:?}", v),
+                    Err(e) => println!("{:?}", e),
                 }
             }
         }
@@ -63,4 +72,3 @@ pub fn debugger<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -
     let mut result = result.borrow_mut();
     Ok(result.take().unwrap())
 }
-

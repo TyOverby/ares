@@ -19,14 +19,11 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             UnexpectedChar(c, pos, ref while_doing) =>
-                write!(f,
-                       "Unexpected character {} at {}, {}",
-                       c, pos, while_doing),
-            UnterminatedString(pos) =>
-                write!(f, "Unterminated string beginning at {}", pos),
+                write!(f, "Unexpected character {} at {}, {}", c, pos, while_doing),
+            UnterminatedString(pos) => write!(f, "Unterminated string beginning at {}", pos),
             ConversionError(ref s, ref e) => {
                 write!(f, "Could not convert {}: {}", s, e)
-            },
+            }
             BadEscape(pos, ref s) =>
                 write!(f, "Invalid escape sequence starting at {}: {}", pos, s),
             MissingRightDelimiter(c) => write!(f, "Missing right delimiter {}", c.to_char()),

@@ -60,8 +60,8 @@ impl SymbolIntern {
 
     pub fn lookup_or_anon(&self, symbol: Symbol) -> String {
         let Symbol(id) = symbol;
-        self.lookup(symbol).map(|s| s.into())
+        self.lookup(symbol)
+            .map(|s| s.into())
             .unwrap_or_else(|| format!("s{}", id))
     }
 }
-

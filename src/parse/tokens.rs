@@ -35,16 +35,29 @@ pub enum TokenType {
     FormLike(FormLike),
     String(String),
     Number(String),
-    Symbol(String)
+    Symbol(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum Open { LParen, LBrace, LBracket }
+pub enum Open {
+    LParen,
+    LBrace,
+    LBracket,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum Close { RParen, RBrace, RBracket }
+pub enum Close {
+    RParen,
+    RBrace,
+    RBracket,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum FormLike { Quote, QuasiQuote, Unquote, UnquoteSplicing }
+pub enum FormLike {
+    Quote,
+    QuasiQuote,
+    Unquote,
+    UnquoteSplicing,
+}
 
 impl FormLike {
     #[inline]
@@ -54,7 +67,7 @@ impl FormLike {
             &Quote => "quote",
             &QuasiQuote => "quasiquote",
             &Unquote => "unquote",
-            &UnquoteSplicing => "unquote-splicing"
+            &UnquoteSplicing => "unquote-splicing",
         }
     }
 }
@@ -68,7 +81,7 @@ impl Open {
         match self {
             &LParen => RParen,
             &LBrace => RBrace,
-            &LBracket => RBracket
+            &LBracket => RBracket,
         }
     }
 }
@@ -79,7 +92,7 @@ impl Close {
         match self {
             &RParen => ')',
             &RBrace => '}',
-            &RBracket => ']'
+            &RBracket => ']',
         }
     }
 }
@@ -87,12 +100,16 @@ impl Close {
 pub struct Token {
     pub tt: TokenType,
     pub start: Position,
-    pub end: Position
+    pub end: Position,
 }
 
 impl Token {
     pub fn new(t: TokenType, start: Position, end: Position) -> Token {
-        Token { tt: t, start: start, end: end}
+        Token {
+            tt: t,
+            start: start,
+            end: end,
+        }
     }
 
     pub fn new_delim(c: char, start: Position) -> Option<Token> {
@@ -104,9 +121,13 @@ impl Token {
             ']' => Some(Close(RBracket)),
             '{' => Some(Open(LBrace)),
             '}' => Some(Close(RBrace)),
-            _ => None
+            _ => None,
         } {
-            Some(Token { tt: tt, start: start, end: start.next() })
+            Some(Token {
+                tt: tt,
+                start: start,
+                end: start.next(),
+            })
         } else {
             None
         }
@@ -115,7 +136,7 @@ impl Token {
 
 struct CharIndicesPos<'a> {
     pos: Position,
-    iter: CharIndices<'a>
+    iter: CharIndices<'a>,
 }
 
 impl<'a> CharIndicesPos<'a> {
@@ -137,8 +158,7 @@ impl<'a> Iterator for CharIndicesPos<'a> {
     }
 }
 
-pub struct TokenIter<'a>
-{
+pub struct TokenIter<'a> {
     input: &'a str,
     iter: Peekable<CharIndicesPos<'a>>,
 }
@@ -166,12 +186,13 @@ impl<'a> Iterator for TokenIter<'a>
                     } else {
                         unquote
                     }
-                },
+                }
                 c if is_symbol_start_c(c) => Some(self.read_symbol(c, start, pos)),
                 c if c.is_digit(10) => Some(self.read_number(start, pos)),
-                '(' | ')' | '[' | ']' | '{' | '}' => Some(Ok(Token::new_delim(curchar, pos).unwrap())),
+                '(' | ')' | '[' | ']' | '{' | '}' =>
+                    Some(Ok(Token::new_delim(curchar, pos).unwrap())),
                 '"' => Some(self.read_string(start + 1, pos)),
-                _ => None
+                _ => None,
             }
         } else {
             None
@@ -197,7 +218,10 @@ impl<'a> TokenIter<'a>
 {
     pub fn new(s: &'a str) -> TokenIter<'a> {
         let iter = CharIndicesPos::new(Position(1, 0), s.char_indices());
-        TokenIter { input: s, iter: iter.peekable() }
+        TokenIter {
+            input: s,
+            iter: iter.peekable(),
+        }
     }
 
     fn take_until<'b, F>(&'b mut self, f: F) -> (Vec<(usize, char, Position)>, Option<usize>)
@@ -222,7 +246,10 @@ impl<'a> TokenIter<'a>
         }
     }
 
-    fn read_u_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
+    fn read_u_escape<'b>(&'b mut self,
+                         start: usize,
+                         escape_start: Position,
+                         string_start: Position)
                          -> Result<char, ParseError> {
         let (chars, brace) = self.take_until(|c| c == '}');
         let brace = brace.unwrap_or(self.input.len());
@@ -231,26 +258,34 @@ impl<'a> TokenIter<'a>
             l if l > 8 => Err(BadEscape(escape_start, self.input[start..chars[8].0].into())),
             l => {
                 if chars[0].1 != '{' ||
-                    !(chars.iter().skip(1).take(l-1)
-                      .map(|&(_,c,_)| c).all(|c| c.is_digit(16))) {
-                    Err(BadEscape(escape_start, self.input[start..brace+1].into()))
+                   !(chars.iter()
+                          .skip(1)
+                          .take(l - 1)
+                          .map(|&(_, c, _)| c)
+                          .all(|c| c.is_digit(16))) {
+                    Err(BadEscape(escape_start, self.input[start..brace + 1].into()))
                 } else {
-                    let ival = chars
-                        .iter()
-                        .skip(1)
-                        .take(l-1).fold(0, |acc, &(_, c, _)|
-                                        acc * 16 + (c as u32 - '0' as u32));
+                    let ival = chars.iter()
+                                    .skip(1)
+                                    .take(l - 1)
+                                    .fold(0, |acc, &(_, c, _)| acc * 16 + (c as u32 - '0' as u32));
                     char::from_u32(ival)
-                            .ok_or(BadEscape(escape_start, self.input[start..brace+1].into()))
+                        .ok_or(BadEscape(escape_start, self.input[start..brace + 1].into()))
                 }
             }
         }
     }
 
-    fn read_x_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
+    fn read_x_escape<'b>(&'b mut self,
+                         start: usize,
+                         escape_start: Position,
+                         string_start: Position)
                          -> Result<char, ParseError> {
         // hand-rolled version of self.iter.take(2).collect()
-        let v : Vec<_> = self.iter.next().map_or(vec![], (|x| self.iter.next().map_or(vec![x], |y| vec![x,y])));
+        let v: Vec<_> = self.iter.next().map_or(vec![],
+                                                (|x| {
+                                                    self.iter.next().map_or(vec![x], |y| vec![x, y])
+                                                }));
         if v.len() < 2 {
             Err(UnterminatedString(string_start))
         } else {
@@ -260,19 +295,22 @@ impl<'a> TokenIter<'a>
                 Err(BadEscape(escape_start, self.input[start..end_index].into()))
             } else {
                 match c2 {
-                    '0' ... '9' | 'a' ... 'f' | 'A' ... 'F' => {
+                    '0'...'9' | 'a'...'f' | 'A'...'F' => {
                         let zero = '0' as u32;
                         let ival = (c1 as u32 - zero) * 16 + (c2 as u32 - zero);
                         char::from_u32(ival)
                             .ok_or(BadEscape(escape_start, self.input[start..end_index].into()))
-                    },
-                    _ => Err(BadEscape(escape_start, self.input[start..end_index+1].into()))
+                    }
+                    _ => Err(BadEscape(escape_start, self.input[start..end_index + 1].into())),
                 }
             }
         }
     }
 
-    fn read_escape<'b>(&'b mut self, start: usize, escape_start: Position, string_start: Position)
+    fn read_escape<'b>(&'b mut self,
+                       start: usize,
+                       escape_start: Position,
+                       string_start: Position)
                        -> Result<char, ParseError> {
         if let Some((end, c, _pos)) = self.iter.next() {
             match c {
@@ -283,14 +321,17 @@ impl<'a> TokenIter<'a>
                 '\'' => Ok('\''),
                 '"' => Ok('"'),
                 'n' => Ok('\n'),
-                _ => Err(BadEscape(escape_start, self.input[start..end+1].into()))
+                _ => Err(BadEscape(escape_start, self.input[start..end + 1].into())),
             }
         } else {
             Err(UnterminatedString(string_start))
         }
     }
 
-    fn read_string<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token, ParseError> {
+    fn read_string<'b>(&'b mut self,
+                       start: usize,
+                       startpos: Position)
+                       -> Result<Token, ParseError> {
         let mut start = Some(start);
         let mut string = String::new();
         let endpos;
@@ -299,7 +340,9 @@ impl<'a> TokenIter<'a>
             match next {
                 None => return Err(UnterminatedString(startpos)),
                 Some((j, c, pos)) => {
-                    if start.is_none() { start = Some(j); }
+                    if start.is_none() {
+                        start = Some(j);
+                    }
                     if c == '\\' {
                         string.push_str(&self.input[start.unwrap()..j]);
                         string.push(try!(self.read_escape(j, pos, startpos)));
@@ -307,18 +350,21 @@ impl<'a> TokenIter<'a>
                     } else if c == '"' {
                         string.push_str(&self.input[start.unwrap()..j]);
                         endpos = pos;
-                        break
+                        break;
                     }
                 }
             }
-        };
+        }
         if let Some(&(_, c, pos)) = self.iter.peek() {
             delimcheck!(c, pos, startpos, "string");
-        };
+        }
         Ok(Token::new(TokenType::String(string), startpos, endpos))
     }
 
-    fn read_number<'b>(&'b mut self, start: usize, startpos: Position) -> Result<Token, ParseError> {
+    fn read_number<'b>(&'b mut self,
+                       start: usize,
+                       startpos: Position)
+                       -> Result<Token, ParseError> {
         let stop;
         let mut endpos = startpos.next();
         loop {
@@ -327,7 +373,7 @@ impl<'a> TokenIter<'a>
                     stop = j;
                     delimcheck!(c, pos, startpos, "number");
                     endpos = pos;
-                    break
+                    break;
                 }
                 self.iter.next();
             } else {
@@ -335,20 +381,27 @@ impl<'a> TokenIter<'a>
                 break;
             }
         }
-        Ok(Token::new(TokenType::Number(self.input[start..stop].into()), startpos, endpos))
+        Ok(Token::new(TokenType::Number(self.input[start..stop].into()),
+                      startpos,
+                      endpos))
     }
 
-    fn read_symbol<'b>(&'b mut self, symstart: char, start: usize, startpos: Position)
-                   -> Result<Token, ParseError> {
+    fn read_symbol<'b>(&'b mut self,
+                       symstart: char,
+                       start: usize,
+                       startpos: Position)
+                       -> Result<Token, ParseError> {
         let stop;
         let mut endpos = startpos.next();
         if let Some(&(j, c, pos)) = self.iter.peek() {
             endpos = pos;
             if c.is_digit(10) && (symstart == '+' || symstart == '-') {
                 self.iter.next();
-                return self.read_number(start, startpos)
+                return self.read_number(start, startpos);
             } else if is_delimiter_c(c) {
-                return Ok(Token::new(TokenType::Symbol(self.input[start..j].into()), startpos, pos))
+                return Ok(Token::new(TokenType::Symbol(self.input[start..j].into()),
+                                     startpos,
+                                     pos));
             }
         }
         self.iter.next();
@@ -358,15 +411,17 @@ impl<'a> TokenIter<'a>
                 if !is_symbol_c(c) {
                     stop = j;
                     delimcheck!(c, pos, startpos, "symbol");
-                    break
+                    break;
                 }
                 self.iter.next();
             } else {
                 stop = self.input.len();
-                break
+                break;
             }
         }
-        Ok(Token::new(TokenType::Symbol(self.input[start..stop].into()), startpos, endpos))
+        Ok(Token::new(TokenType::Symbol(self.input[start..stop].into()),
+                      startpos,
+                      endpos))
     }
 }
 
@@ -377,14 +432,14 @@ fn is_delimiter_c(c: char) -> bool {
 
 #[inline]
 fn is_number_c(c: char) -> bool {
-    c.is_digit(10) || c == '.'  || c == 'e' || c == 'E'
+    c.is_digit(10) || c == '.' || c == 'e' || c == 'E'
 }
 
 
 #[inline]
 fn is_symbol_c(c: char) -> bool {
-    (c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' ||
-        (c >= '#' && c <= '\'')) && !is_delimiter_c(c)
+    (c.is_alphanumeric() || (c >= '*' && c <= '~') || c == '!' || (c >= '#' && c <= '\'')) &&
+    !is_delimiter_c(c)
 }
 
 #[inline]

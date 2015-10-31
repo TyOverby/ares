@@ -10,19 +10,8 @@ pub mod util;
 pub mod intern;
 
 pub use parse::parse;
-pub use eval::{
-    user_fn,
-    free_fn,
-    ast_fn,
-    Procedure,
-    ForeignFunction,
-    Env,
-    Environment,
-    ParamBinding,
-    Context,
-    LoadedContext,
-    State,
-};
+pub use eval::{user_fn, free_fn, ast_fn, Procedure, ForeignFunction, Env, Environment,
+               ParamBinding, Context, LoadedContext, State};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {
@@ -51,7 +40,7 @@ pub enum Value {
     ForeignFn(ForeignFunction<()>),
     Lambda(Procedure, bool),
 
-    UserData(Rc<Any>)
+    UserData(Rc<Any>),
 }
 
 impl Value {
@@ -120,9 +109,8 @@ impl PartialEq for Value {
             (&ForeignFn(ref ff1), &ForeignFn(ref ff2)) => ff1 == ff2,
             (&Lambda(ref l1, b1), &Lambda(ref l2, b2)) => l1 == l2 && b1 == b2,
             (&Map(ref m1), &Map(ref m2)) => m1 == m2,
-            (&UserData(ref u1), &UserData(ref u2)) =>
-                rc_to_usize(u1) == rc_to_usize(u2),
-            _ => false
+            (&UserData(ref u1), &UserData(ref u2)) => rc_to_usize(u1) == rc_to_usize(u2),
+            _ => false,
         }
     }
 }
@@ -130,20 +118,28 @@ impl PartialEq for Value {
 impl Eq for Value {}
 
 impl std::hash::Hash for Value {
-    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+        where H: ::std::hash::Hasher
+    {
         use std::mem::transmute;
         match self {
             &Value::List(ref rc) => rc.hash(state),
             &Value::String(ref rc) => rc.hash(state),
             &Value::Float(f) => unsafe { state.write(&transmute::<_, [u8; 8]>(f)) },
             &Value::Int(i) => unsafe { state.write(&transmute::<_, [u8; 8]>(i)) },
-            &Value::Bool(b) => state.write(&[if b {1} else {0}]),
+            &Value::Bool(b) => state.write(&[if b {
+                                                 1
+                                             } else {
+                                                 0
+                                             }]),
             &Value::Symbol(ref rc) => rc.hash(state),
             &Value::ForeignFn(ref ff) => ff.hash(state),
-            &Value::Lambda(ref p, ref b) => { p.hash(state); b
-.hash(state) },
+            &Value::Lambda(ref p, ref b) => {
+                p.hash(state);
+                b.hash(state)
+            }
             &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),
-            &Value::Map(_) => unimplemented!()  // hashmap not hashable.
+            &Value::Map(_) => unimplemented!(),  // hashmap not hashable.
         }
     }
 }
@@ -161,5 +157,5 @@ fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
 
 fn rc_to_usize<T: ?Sized>(rc: &Rc<T>) -> usize {
     use std::mem::transmute;
-    unsafe {transmute(&*rc)}
+    unsafe { transmute(&*rc) }
 }
