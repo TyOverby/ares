@@ -17,6 +17,12 @@ pub enum StepState {
     Complete(Value)
 }
 
+pub fn cleanup_stack<S: ?Sized + State>(prev_length: usize, ctx: &mut LoadedContext<S>) {
+    while ctx.stack.len() > (prev_length - 2) {
+        ctx.stack.pop();
+    }
+}
+
 pub fn eval<S: ?Sized>(value: &Value, ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<Value>
 where S: State
 {
@@ -26,15 +32,22 @@ where S: State
     ctx.stack.push(StepState::EvalThis(value));
 
     let len = ctx.stack.len();
-    try!(step_eval(ctx, proc_head));
-    while ctx.stack.len() > len {
-        try!(step_eval(ctx, proc_head));
+    if let Err(e) = step_eval(ctx, proc_head) {
+        cleanup_stack(len, ctx);
+        return Err(e);
     }
 
-    let result = ctx.stack.pop().unwrap();
-    let ret = ctx.stack.pop().unwrap();
+    while ctx.stack.len() > len {
+        if let Err(e) = step_eval(ctx, proc_head) {
+            cleanup_stack(len, ctx);
+            return Err(e);
+        }
+    }
+
+    let result = ctx.stack.pop();
+    let ret = ctx.stack.pop();
     match (ret, result) {
-        (StepState::Return, StepState::Complete(value)) => {
+        (Some(StepState::Return), Some(StepState::Complete(value))) => {
             Ok(value)
         }
         (res, r) => panic!("eval(..): invalid stack state [..., {:?}, {:?}]", r, res),
@@ -43,14 +56,13 @@ where S: State
 
 fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<()> {
     let top = ctx.stack.pop().unwrap();
-    if let StepState::Complete(value) = top {
-        let what = ctx.stack.pop().unwrap();
+    if let StepState::Complete(_value) = top {
+        let _what = ctx.stack.pop().unwrap();
 
     } else {
         match top {
             StepState::EvalThis(value) => {
-                let result = try!(eval_this(&value, ctx, proc_head));
-                ctx.stack.push(StepState::Complete(result));
+                try!(eval_this(value, ctx, proc_head));
             }
             StepState::Complete(_) => unreachable!(),
             a@StepState::Return => panic!("step_eval(..): invalid stack state: [..., {:?}]", a)
@@ -59,22 +71,26 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>, proc_head: bool) -> 
     Ok(())
 }
 
-fn eval_this<S: State + ?Sized>(value: &Value,
+fn eval_this<S: State + ?Sized>(value: Value,
                                ctx: &mut LoadedContext<S>,
                                proc_head: bool)
-                               -> AresResult<Value> {
+                               -> AresResult<()> {
     match value {
-        &Value::Symbol(symbol) => {
-            match ctx.env().borrow().get(symbol) {
+        Value::Symbol(symbol) => {
+            let func = ctx.env().borrow().get(symbol);
+            match func {
                 Some(Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..})) if !proc_head => {
                     Err(AresError::AstFunctionPass)
                 }
-                Some(v) => Ok(v),
+                Some(v) => {
+                    ctx.stack.push(StepState::Complete(v));
+                    Ok(())
+                },
                 None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol))),
             }
         }
 
-        &Value::List(ref items) => {
+        Value::List(ref items) => {
             let head = match items.first() {
                 Some(h) => h,
                 None => return Err(AresError::ExecuteEmptyList),
@@ -86,19 +102,27 @@ fn eval_this<S: State + ?Sized>(value: &Value,
                 f@Value::Lambda(_, _) => {
                     let evald: AresResult<Vec<Value>> = items.iter().map(|v| ctx.eval(v)).collect();
                     let evald = try!(evald);
-                    apply(&f, &evald[..], ctx)
+                    let apply_result = try!(apply(&f, &evald[..], ctx));
+                    ctx.stack.push(StepState::Complete(apply_result));
+                    Ok(())
                 }
 
                 f@Value::ForeignFn(_) => {
-                    apply(&f, items, ctx)
+                    let apply_result = try!(apply(&f, items, ctx));
+                    ctx.stack.push(StepState::Complete(apply_result));
+                    Ok(())
+
                 }
                 x => Err(AresError::UnexecutableValue(x)),
             }
         }
 
-        &Value::Lambda(_, true) => Err(AresError::MacroReference),
+        Value::Lambda(_, true) => Err(AresError::MacroReference),
 
-        &ref v => Ok(v.clone()),
+        v => {
+            ctx.stack.push(StepState::Complete(v));
+            Ok(())
+        },
     }
 }
 
