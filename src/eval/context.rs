@@ -148,7 +148,9 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
     }
 
     pub fn call(&mut self, func: &Value, args: &[Value]) -> AresResult<Value> {
-        apply(func, &args[..], self)
+        // FIXME
+        let args: Vec<_> = args.iter().cloned().collect();
+        apply(func, args.into_iter(), self)
     }
 
     pub fn call_named<N: ?Sized + AsRef<str>>(&mut self,
