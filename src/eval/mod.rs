@@ -16,34 +16,13 @@ pub enum StepState {
     EvalThis(Value),
     Return,
     Complete(Value),
+    PreEvaluatedLambda {
+        unevaluated: IntoIter<Value>
+    },
     Lambda {
         func: Procedure,
         evaluated: Vec<Value>,
-        yet_to_be_evaluated: IntoIter<Value>
-    }
-}
-
-impl ::std::fmt::Debug for StepState {
-    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        match self {
-            &StepState::EvalThis(ref v) =>
-                formatter.debug_tuple("EvalThis")
-                         .field(v)
-                         .finish(),
-            &StepState::Return =>
-                formatter.debug_tuple("Return")
-                         .finish(),
-            &StepState::Complete(ref v) =>
-                formatter.debug_tuple("Complete")
-                         .field(v)
-                         .finish(),
-            &StepState::Lambda { ref func, ref evaluated, .. } =>
-                formatter.debug_struct("lambda")
-                         .field("func", func)
-                         .field("evaluated", evaluated)
-                         .field("yet_to_be_evaluated", &"[..]")
-                         .finish(),
-        }
+        unevaluated: IntoIter<Value>
     }
 }
 
@@ -88,17 +67,17 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>, proc_head: bool) -> 
     let top = ctx.stack.pop().unwrap();
     if let StepState::Complete(value) = top {
         match ctx.stack.pop().unwrap() {
-            StepState::Lambda { func, mut evaluated, mut yet_to_be_evaluated } => {
+            StepState::Lambda { func, mut evaluated, mut unevaluated } => {
                 evaluated.push(value);
-                if let Some(next) = yet_to_be_evaluated.next() {
+                if let Some(next) = unevaluated.next() {
                     ctx.stack.push(StepState::Lambda {
                         func: func,
                         evaluated: evaluated,
-                        yet_to_be_evaluated: yet_to_be_evaluated,
+                        unevaluated: unevaluated,
                     });
                     ctx.stack.push(StepState::EvalThis(next));
                 } else {
-                    let returned = try!(apply_lambda(&func, evaluated.into_iter().map(Ok), ctx));
+                    let returned = try!(apply_lambda(&func, evaluated, ctx));
                     ctx.stack.push(StepState::Complete(returned));
                 }
             }
@@ -111,7 +90,9 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>, proc_head: bool) -> 
                 try!(eval_this(value, ctx, proc_head));
             }
             StepState::Complete(_) => unreachable!(),
-            a@StepState::Return | a@StepState::Lambda {..} =>
+            a@StepState::Return |
+            a@StepState::Lambda {..} |
+            a@StepState::PreEvaluatedLambda { .. } =>
                 panic!("step_eval(..): invalid stack state: [..., {:?}]", a)
         }
     }
@@ -139,7 +120,7 @@ fn eval_this<S: State + ?Sized>(value: Value,
 
         Value::List(items) => {
             let mut args_count = items.len();
-            let mut items = items.iter().cloned().collect::<Vec<_>>().into_iter();
+            let mut items = items.iter().cloned();
             let head = match items.next() {
                 Some(h) => {
                     args_count -= 1;
@@ -147,21 +128,22 @@ fn eval_this<S: State + ?Sized>(value: Value,
                 },
                 None => return Err(AresError::ExecuteEmptyList),
             };
+            let mut items: Vec<_> = items.collect();
 
             match try!(eval(&head, ctx, true)) {
                 Value::Lambda(_, true) => Err(AresError::MacroReference),
                 Value::Lambda(procedure, _) => {
                     if args_count == 0 {
-                        let returned = try!(apply_lambda(&procedure, vec![].into_iter(), ctx));
+                        let returned = try!(apply_lambda(&procedure, vec![], ctx));
                         ctx.stack.push(StepState::Complete(returned));
                         Ok(())
                     } else {
                         let evaluated = Vec::with_capacity(items.len());
-                        let first = items.next().unwrap();
+                        let first = items.remove(0);
                         ctx.stack.push(StepState::Lambda {
                             func: procedure,
                             evaluated: evaluated ,
-                            yet_to_be_evaluated: items
+                            unevaluated: items.into_iter()
                         });
                         ctx.stack.push(StepState::EvalThis(first));
                         Ok(())
@@ -187,10 +169,16 @@ fn eval_this<S: State + ?Sized>(value: Value,
     }
 }
 
-pub fn apply_lambda<S: ?Sized, I>(procedure: &Procedure,
-                                  args: I,
+pub fn apply_lambda<S: ?Sized>(procedure: &Procedure,
+                                  args: Vec<Value>,
                                   ctx: &mut LoadedContext<S>) -> AresResult<Value>
-where S: State, I: Iterator<Item=AresResult<Value>> {
+where S: State {
+    for arg in &args {
+        if let &Value::ForeignFn(ForeignFunction { typ: FfType::Ast, .. }) = arg {
+            return Err(AresError::AstFunctionPass);
+        }
+    }
+
     let mut new_env = try!(procedure.gen_env(args));
     ctx.with_other_env(&mut new_env, |ctx| {
         let mut last = None;
@@ -202,30 +190,25 @@ where S: State, I: Iterator<Item=AresResult<Value>> {
     })
 }
 
-pub fn apply_function<S: ?Sized, I>(function: &ForeignFunction<()>,
-                                 args: I,
+pub fn apply_function<S: ?Sized>(function: &ForeignFunction<()>,
+                                 args: Vec<Value>,
                                  ctx: &mut LoadedContext<S>) -> AresResult<Value>
-where S: State, I: Iterator<Item=AresResult<Value>> {
+where S: State {
+    for arg in &args {
+        if let &Value::ForeignFn(ForeignFunction { typ: FfType::Ast, .. }) = arg {
+            return Err(AresError::AstFunctionPass);
+        }
+    }
+
     let corrected = try!(function.correct::<S>().or(Err(AresError::InvalidForeignFunctionState)));
-    // FIXME
-    let collected: Result<Vec<_>, _> = args.collect();
-    let collected = try!(collected);
-    (corrected.function)(&collected[..], ctx)
+    // FIXME pass the whole vec in
+    (corrected.function)(&args[..], ctx)
 }
 
-pub fn apply<'a, S: ?Sized, I>(func: &Value,
-                                    args: I,
-                                    ctx: &mut LoadedContext<S>)
-                                    -> AresResult<Value>
-where S: State, I: Iterator<Item=Value> {
-    let args = args.map(|value| {
-        match value {
-            Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..}) =>
-                Err(AresError::AstFunctionPass),
-            other => Ok(other)
-        }
-    });
-
+pub fn apply<'a, S: ?Sized>(func: &Value,
+                            args: Vec<Value>,
+                            ctx: &mut LoadedContext<S>) -> AresResult<Value>
+where S: State {
     match func.clone() {
         Value::Lambda(procedure, _) => {
             apply_lambda(&procedure, args, ctx)
@@ -234,5 +217,33 @@ where S: State, I: Iterator<Item=Value> {
             apply_function(&ff, args, ctx)
         }
         other => Err(AresError::UnexecutableValue(other.clone())),
+    }
+}
+
+impl ::std::fmt::Debug for StepState {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        match self {
+            &StepState::EvalThis(ref v) =>
+                formatter.debug_tuple("EvalThis")
+                         .field(v)
+                         .finish(),
+            &StepState::Return =>
+                formatter.debug_tuple("Return")
+                         .finish(),
+            &StepState::Complete(ref v) =>
+                formatter.debug_tuple("Complete")
+                         .field(v)
+                         .finish(),
+            &StepState::Lambda { ref func, ref evaluated, .. } =>
+                formatter.debug_struct("Lambda")
+                         .field("func", func)
+                         .field("evaluated", evaluated)
+                         .field("unevaluated", &"[..]")
+                         .finish(),
+            &StepState::PreEvaluatedLambda { .. } =>
+                formatter.debug_struct("PreEvaluatedLambda")
+                         .field("unevaluated", &"[..]")
+                         .finish(),
+        }
     }
 }
