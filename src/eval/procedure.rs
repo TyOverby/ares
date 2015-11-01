@@ -34,10 +34,12 @@ impl Procedure {
         }
     }
 
-    pub fn gen_env<I: Iterator<Item = Value>>(&self, values: I) -> AresResult<Env> {
+    pub fn gen_env<I: Iterator<Item = AresResult<Value>>>(&self, values: I) -> AresResult<Env> {
         let params_expected = self.param_names.params.len();
         let has_rest = self.param_names.rest.is_some();
-        let params: Vec<_> = values.collect();
+        // FIXME: remove this collect
+        let params: Result<Vec<_>, _> = values.collect();
+        let params = try!(params);
         if params.len() < params_expected {
             return Err(AresError::UnexpectedArity {
                 found: params.len() as u16,
