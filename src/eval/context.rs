@@ -127,7 +127,7 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
     }
 
     pub fn eval(&mut self, value: &Value) -> AresResult<Value> {
-        eval(value, self, false)
+        eval(value, self)
     }
 
     pub fn macroexpand(&mut self, value: Value) -> AresResult<Value> {
