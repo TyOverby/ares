@@ -1,5 +1,3 @@
-use std::vec::IntoIter;
-
 use super::{Value, AresError, AresResult};
 
 pub use self::environment::{Env, Environment};
@@ -12,6 +10,7 @@ mod foreign_function;
 mod procedure;
 mod context;
 
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum StepState {
     EvalThis(Value, bool),
     Return,
@@ -22,7 +21,7 @@ pub enum StepState {
     Lambda {
         func: Procedure,
         evaluated: Vec<Value>,
-        unevaluated: IntoIter<Value>
+        unevaluated: Vec<Value>
     }
 }
 
@@ -78,12 +77,14 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
                     other => return Err(AresError::UnexecutableValue(other.clone())),
                 };
 
-                if unevaluated.len() != 0 {
-                    let first = unevaluated.remove(0);
+                // we will be wanting the "next" element very often,
+                // so reverse this right now and call `pop` to get the next one.
+                unevaluated.reverse();
+                if let Some(first) = unevaluated.pop() {
                     ctx.stack.push(StepState::Lambda {
                         func: procedure,
                         evaluated: vec![],
-                        unevaluated: unevaluated.into_iter()
+                        unevaluated: unevaluated,
                     });
                     ctx.stack.push(StepState::EvalThis(first, false));
                 } else {
@@ -93,7 +94,7 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
             }
             StepState::Lambda { func, mut evaluated, mut unevaluated } => {
                 evaluated.push(value);
-                if let Some(next) = unevaluated.next() {
+                if let Some(next) = unevaluated.pop() {
                     ctx.stack.push(StepState::Lambda {
                         func: func,
                         evaluated: evaluated,
@@ -176,6 +177,7 @@ where S: State {
     ctx.with_other_env(&mut new_env, |ctx| {
         let mut last = None;
         for body in &*procedure.bodies {
+            // FIXME remove recursive call
             last = Some(try!(ctx.eval(body)));
         }
         // it's impossible to make a lambda without a body
@@ -210,33 +212,5 @@ where S: State {
             apply_function(&ff, args, ctx)
         }
         other => Err(AresError::UnexecutableValue(other)),
-    }
-}
-
-impl ::std::fmt::Debug for StepState {
-    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
-        match self {
-            &StepState::EvalThis(ref v, _) =>
-                formatter.debug_tuple("EvalThis")
-                         .field(v)
-                         .finish(),
-            &StepState::Return =>
-                formatter.debug_tuple("Return")
-                         .finish(),
-            &StepState::Complete(ref v) =>
-                formatter.debug_tuple("Complete")
-                         .field(v)
-                         .finish(),
-            &StepState::Lambda { ref func, ref evaluated, .. } =>
-                formatter.debug_struct("Lambda")
-                         .field("func", func)
-                         .field("evaluated", evaluated)
-                         .field("unevaluated", &"[..]")
-                         .finish(),
-            &StepState::PreEvaluatedCallable { .. } =>
-                formatter.debug_struct("PreEvaluatedLambda")
-                         .field("unevaluated", &"[..]")
-                         .finish(),
-        }
     }
 }
