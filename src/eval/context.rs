@@ -20,7 +20,7 @@ pub struct LoadedContext<'a, S: State + ?Sized> {
     state: &'a mut S,
 
     pub env_stack: Vec<Env>,
-    pub stack: Vec<StepState>
+    pub stack: Vec<StepState>,
 }
 
 pub trait State: Any {}

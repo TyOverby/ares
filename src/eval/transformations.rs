@@ -1,6 +1,6 @@
 use super::StepState;
 
-use ::{Value, AresError, AresResult};
+use {Value, AresError, AresResult};
 
 use super::procedure::Procedure;
 use super::context::{LoadedContext, State};
@@ -9,16 +9,19 @@ use super::{apply_lambda, apply_function};
 
 /// Transforms a pre-evaluated callable into a
 /// collecting-args lambda.
-pub fn from_pre_evaluated<S: ?Sized>(mut unevaluated: Vec<Value>, function: Value, ctx: &mut LoadedContext<S>)
--> AresResult<()>
-where S: State {
+pub fn from_pre_evaluated<S: ?Sized>(mut unevaluated: Vec<Value>,
+                                     function: Value,
+                                     ctx: &mut LoadedContext<S>)
+                                     -> AresResult<()>
+    where S: State
+{
     // Check to make sure that we actually got something that is callable
     let procedure = match function {
         Value::Lambda(procedure, _) => procedure,
         Value::ForeignFn(func) => {
             let apply_result = try!(apply_function(func, unevaluated, ctx));
             ctx.stack.push(StepState::Complete(apply_result));
-            return Ok(())
+            return Ok(());
         }
         other => return Err(AresError::UnexecutableValue(other.clone())),
     };
@@ -48,13 +51,14 @@ where S: State {
 
 /// This is called when an arg_collecting_lambda gets one of its
 /// arguments evaluated.
-pub fn from_arg_collecting_lambda<S: ?Sized>(
-        procedure: Procedure,
-        mut unevaluated: Vec<Value>,
-        mut evaluated: Vec<Value>,
-        completed: Value,
-        ctx: &mut LoadedContext<S>) -> AresResult<()>
-where S: State {
+pub fn from_arg_collecting_lambda<S: ?Sized>(procedure: Procedure,
+                                             mut unevaluated: Vec<Value>,
+                                             mut evaluated: Vec<Value>,
+                                             completed: Value,
+                                             ctx: &mut LoadedContext<S>)
+                                             -> AresResult<()>
+    where S: State
+{
     // Push the completed arg-value back on the list of
     // evaluated args.
     evaluated.push(completed);
@@ -76,12 +80,13 @@ where S: State {
 
 /// This is called when an evaluating-lambda has finished evaluating
 /// one of the bodies of a lambda and has produced a result.
-pub fn from_evaluating_lambda<S: ?Sized>(
-    mut bodies: Vec<Value>,
-    name: Option<String>,
-    past_body_result: Value,
-    ctx: &mut LoadedContext<S>) -> AresResult<()>
-where S: State {
+pub fn from_evaluating_lambda<S: ?Sized>(mut bodies: Vec<Value>,
+                                         name: Option<String>,
+                                         past_body_result: Value,
+                                         ctx: &mut LoadedContext<S>)
+                                         -> AresResult<()>
+    where S: State
+{
     if let Some(next_body) = bodies.pop() {
         // If this isn't the last body in the lambda, start evaluating the
         // next one.

@@ -18,17 +18,17 @@ pub enum StepState {
     Return,
     Complete(Value),
     PreEvaluatedCallable {
-        unevaluated: Vec<Value>
+        unevaluated: Vec<Value>,
     },
     ArgCollectingLambda {
         procedure: Procedure,
         evaluated: Vec<Value>,
-        unevaluated: Vec<Value>
+        unevaluated: Vec<Value>,
     },
     EvaluatingLambda {
         name: Option<String>,
         bodies: Vec<Value>,
-    }
+    },
 }
 
 fn cleanup_stack<S: ?Sized + State>(prev_length: usize, ctx: &mut LoadedContext<S>) {
@@ -40,7 +40,9 @@ fn cleanup_stack<S: ?Sized + State>(prev_length: usize, ctx: &mut LoadedContext<
 /// Runs the eval-loop until the state stack of of a target size.
 /// The target size is usually the size of the stack before the call to eval/apply
 /// plus 2 (one spot for the StepState::Return, one spot for the StepState::Complete)
-fn run_evaluation<S: ?Sized + State>(target_len: usize, ctx: &mut LoadedContext<S>) -> AresResult<(StepState, StepState)> {
+fn run_evaluation<S: ?Sized + State>(target_len: usize,
+                                     ctx: &mut LoadedContext<S>)
+                                     -> AresResult<(StepState, StepState)> {
     loop {
         let cur_len = ctx.stack.len();
         // If we drop below the target_len then something has gone terribly wrong.
@@ -66,7 +68,8 @@ fn run_evaluation<S: ?Sized + State>(target_len: usize, ctx: &mut LoadedContext<
         }
     }
 
-    // Once the eval-loop is done, we are interested in the top-two elements on the stack.
+    // Once the eval-loop is done, we are interested in the top-two elements on the
+    // stack.
     // The `top` should contain the `StepState::Complete` result.
     // The `next_top` should contain `StepState::Return`.
     let top = ctx.stack.pop();
@@ -75,15 +78,17 @@ fn run_evaluation<S: ?Sized + State>(target_len: usize, ctx: &mut LoadedContext<
         (Some(next_top), Some(top)) => {
             Ok((next_top, top))
         }
-        (next_top, top) =>
-            panic!("run_evaluation(..): invalid stack state [..., {:?}, {:?}]", next_top, top),
+        (next_top, top) => panic!("run_evaluation(..): invalid stack state [..., {:?}, {:?}]",
+                                  next_top,
+                                  top),
     }
 }
 
 pub fn eval<S: ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> AresResult<Value>
-where S: State
+    where S: State
 {
-    // FIXME: this will require an interface change that I don't want to do right now.
+    // FIXME: this will require an interface change that I don't want to do right
+    // now.
     let value = value.clone();
 
     // Push the return signal and a request to evaluate the value onto the stack.
@@ -92,15 +97,19 @@ where S: State
 
     match try!(run_evaluation(ctx.stack.len(), ctx)) {
         (StepState::Return, StepState::Complete(value)) => Ok(value),
-        (next_top, top) =>
-            panic!("eval(..): invalid stack state [{:?}, {:?}, {:?}]", ctx.stack, next_top, top),
+        (next_top, top) => panic!("eval(..): invalid stack state [{:?}, {:?}, {:?}]",
+                                  ctx.stack,
+                                  next_top,
+                                  top),
     }
 }
 
 pub fn apply<'a, S: ?Sized>(func: &Value,
                             args: Vec<Value>,
-                            ctx: &mut LoadedContext<S>) -> AresResult<Value>
-where S: State {
+                            ctx: &mut LoadedContext<S>)
+                            -> AresResult<Value>
+    where S: State
+{
     // Keep track of the current stack size.
     let prior_len = ctx.stack.len();
     // Push the return signal onto the stack.
@@ -111,16 +120,20 @@ where S: State {
     // (one for the return, one for the Completed value.
     match try!(run_evaluation(prior_len + 2, ctx)) {
         (StepState::Return, StepState::Complete(value)) => Ok(value),
-        (next_top, top) =>
-            panic!("apply(..): invalid stack state [{:?}, {:?}, {:?}]", ctx.stack, next_top, top),
+        (next_top, top) => panic!("apply(..): invalid stack state [{:?}, {:?}, {:?}]",
+                                  ctx.stack,
+                                  next_top,
+                                  top),
     }
 }
 
 /// Moves the interpreter one "step" forward in the execution.
 fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
-    // Pop the top off of the top value in the stack and switch on the value contained within.
+    // Pop the top off of the top value in the stack and switch on the value
+    // contained within.
     let top = ctx.stack.pop().unwrap();
-    // If a value was just computed, we need to apply that computed value to the state machine that
+    // If a value was just computed, we need to apply that computed value to the
+    // state machine that
     // is just below.
     if let StepState::Complete(value) = top {
         match ctx.stack.pop().unwrap() {
@@ -132,7 +145,11 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
             StepState::ArgCollectingLambda { procedure, unevaluated, evaluated} => {
                 // An ArgCollectingLambda just got one of its arguments evaluated.
                 // `value` is the post-evalauted argument.
-                try!(transformations::from_arg_collecting_lambda(procedure, unevaluated, evaluated, value, ctx));
+                try!(transformations::from_arg_collecting_lambda(procedure,
+                                                                 unevaluated,
+                                                                 evaluated,
+                                                                 value,
+                                                                 ctx));
             }
             StepState::EvaluatingLambda { bodies, name } => {
                 // An EvaluatingLambda just got the result from the execution of one of its
@@ -150,7 +167,9 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
             a@StepState::Return |
             a@StepState::Complete(_) =>
                 panic!("step_eval(..): invalid stack state: [{:?}, {:?}, {:?}]",
-                       ctx.stack, a, StepState::Complete(value))
+                       ctx.stack,
+                       a,
+                       StepState::Complete(value)),
         }
     } else {
         match top {
@@ -161,13 +180,15 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
                 // function.
                 try!(eval_this(value, ctx, proc_head));
             }
-            StepState::PopEnv => { ctx.env_stack.pop(); },
+            StepState::PopEnv => {
+                ctx.env_stack.pop();
+            }
             // These should all be impossible to reach.
             a@StepState::Return |
             a@StepState::ArgCollectingLambda {..} |
             a@StepState::PreEvaluatedCallable { .. } |
             a@StepState::EvaluatingLambda { .. } =>
-                panic!("step_eval(..): invalid stack state: [..., {:?}]", a)
+                panic!("step_eval(..): invalid stack state: [..., {:?}]", a),
         }
     }
     Ok(())
@@ -179,9 +200,9 @@ fn step_eval<S: State + ?Sized>(ctx: &mut LoadedContext<S>) -> AresResult<()> {
 /// the head of a procedure call.
 /// It is false when `value` is an argument.
 fn eval_this<S: State + ?Sized>(value: Value,
-                               ctx: &mut LoadedContext<S>,
-                               proc_head: bool)
-                               -> AresResult<()> {
+                                ctx: &mut LoadedContext<S>,
+                                proc_head: bool)
+                                -> AresResult<()> {
     match value {
         Value::Symbol(symbol) => {
             let lookup = ctx.env().borrow().get(symbol);
@@ -193,7 +214,7 @@ fn eval_this<S: State + ?Sized>(value: Value,
                 Some(v) => {
                     ctx.stack.push(StepState::Complete(v));
                     Ok(())
-                },
+                }
                 None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol))),
             }
         }
@@ -223,14 +244,16 @@ fn eval_this<S: State + ?Sized>(value: Value,
             // stack as being completed.
             ctx.stack.push(StepState::Complete(v));
             Ok(())
-        },
+        }
     }
 }
 
 fn apply_lambda<S: ?Sized>(procedure: Procedure,
-                                  args: Vec<Value>,
-                                  ctx: &mut LoadedContext<S>) -> AresResult<()>
-where S: State {
+                           args: Vec<Value>,
+                           ctx: &mut LoadedContext<S>)
+                           -> AresResult<()>
+    where S: State
+{
     // Make sure that there weren't any raw AST functions being passed in to the
     // lambda.
     for arg in &args {
@@ -283,9 +306,11 @@ where S: State {
 }
 
 fn apply_function<S: ?Sized>(function: ForeignFunction<()>,
-                                 args: Vec<Value>,
-                                 ctx: &mut LoadedContext<S>) -> AresResult<Value>
-where S: State {
+                             args: Vec<Value>,
+                             ctx: &mut LoadedContext<S>)
+                             -> AresResult<Value>
+    where S: State
+{
     // Make sure that there weren't any raw AST functions being passed in to the
     // function.
     for arg in &args {
@@ -301,9 +326,12 @@ where S: State {
     (corrected.function)(&args[..], ctx)
 }
 
-fn do_apply<'a, S: ?Sized>(func: Value, args: Vec<Value>, ctx: &mut LoadedContext<S>)
--> AresResult<()>
-where S: State {
+fn do_apply<'a, S: ?Sized>(func: Value,
+                           args: Vec<Value>,
+                           ctx: &mut LoadedContext<S>)
+                           -> AresResult<()>
+    where S: State
+{
     match func {
         Value::Lambda(procedure, _) => {
             apply_lambda(procedure, args, ctx)
@@ -320,20 +348,16 @@ where S: State {
 impl ::std::fmt::Debug for StepState {
     fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            &StepState::EvalThis(ref v, _) =>
-                formatter.debug_tuple("EvalThis")
-                         .field(v)
-                         .finish(),
-            &StepState::PopEnv =>
-                formatter.debug_tuple("PopEnv")
-                         .finish(),
-            &StepState::Return =>
-                formatter.debug_tuple("Return")
-                         .finish(),
-            &StepState::Complete(ref v) =>
-                formatter.debug_tuple("Complete")
-                         .field(v)
-                         .finish(),
+            &StepState::EvalThis(ref v, _) => formatter.debug_tuple("EvalThis")
+                                                       .field(v)
+                                                       .finish(),
+            &StepState::PopEnv => formatter.debug_tuple("PopEnv")
+                                           .finish(),
+            &StepState::Return => formatter.debug_tuple("Return")
+                                           .finish(),
+            &StepState::Complete(ref v) => formatter.debug_tuple("Complete")
+                                                    .field(v)
+                                                    .finish(),
             &StepState::ArgCollectingLambda { ref procedure, ref evaluated, .. } =>
                 formatter.debug_struct("ArgCollectingLambda")
                          .field("procedure", procedure)
@@ -349,7 +373,7 @@ impl ::std::fmt::Debug for StepState {
                          .field("name", name)
                          .field("bodies", bodies)
                          .field("env", &"{..}")
-                         .finish()
+                         .finish(),
         }
     }
 }
