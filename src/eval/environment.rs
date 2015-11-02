@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use std::collections::hash_state::DefaultState;
 use std::cell::RefCell;
 
-use ::Value;
-use ::intern::Symbol;
-use ::util::IdentityHash;
+use Value;
+use intern::Symbol;
+use util::IdentityHash;
 
 pub type BindingHashMap = HashMap<Symbol, Value, DefaultState<IdentityHash>>;
 
@@ -19,11 +19,13 @@ impl Environment {
     pub fn new() -> Environment {
         Environment {
             parent: None,
-            bindings: Default::default()
+            bindings: Default::default(),
         }
     }
 
-    pub fn new_with_data(env: Env, bindings: HashMap<Symbol, Value, DefaultState<IdentityHash>>) -> Env {
+    pub fn new_with_data(env: Env,
+                         bindings: HashMap<Symbol, Value, DefaultState<IdentityHash>>)
+                         -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
             bindings: bindings,

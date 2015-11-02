@@ -51,11 +51,11 @@ impl Procedure {
         }
         let named: Vec<_> = params[..params_expected].into();
         let mut bindings: BindingHashMap = self.param_names
-                                                       .params
-                                                       .iter()
-                                                       .cloned()
-                                                       .zip(named)
-                                                       .collect();
+                                               .params
+                                               .iter()
+                                               .cloned()
+                                               .zip(named)
+                                               .collect();
         match self.param_names.rest {
             Some(rest_sym) => {
                 let vec: Vec<_> = params[params_expected..].into();
@@ -84,7 +84,9 @@ impl ::std::fmt::Debug for Procedure {
 }
 
 impl ::std::hash::Hash for Procedure {
-    fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+        where H: ::std::hash::Hasher
+    {
         state.write_usize(rc_to_usize(&self.bodies));
         state.write_usize(rc_to_usize(&self.environment));
     }

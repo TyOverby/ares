@@ -12,20 +12,8 @@ pub mod util;
 pub mod intern;
 
 pub use parse::parse;
-pub use eval::{
-    user_fn,
-    free_fn,
-    ast_fn,
-    Procedure,
-    ForeignFunction,
-    BindingHashMap,
-    Env,
-    Environment,
-    ParamBinding,
-    Context,
-    LoadedContext,
-    State
-};
+pub use eval::{user_fn, free_fn, ast_fn, Procedure, ForeignFunction, BindingHashMap, Env,
+               Environment, ParamBinding, Context, LoadedContext, State};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {

@@ -21,7 +21,7 @@ pub fn prompt<P: ?Sized + AsRef<str>>(prompt: &P) -> Option<String> {
 ///
 /// This is *NOT* a cryptographic hash.
 pub struct IdentityHash {
-    state: u32
+    state: u32,
 }
 
 impl IdentityHash {
