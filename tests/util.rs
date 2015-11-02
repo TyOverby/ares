@@ -27,7 +27,7 @@ macro_rules! eval_err {
             Ok(v) => {
                 panic!("eval_err! had a value: {:?}", v);
             }
-            Err(_) => { assert!(true) },
+            Err(_) => { }
         }
     };
     ($prog: expr, $p: pat) => {

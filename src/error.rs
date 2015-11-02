@@ -47,7 +47,9 @@ pub enum AresError {
     MultiValueDefine,
     UnwrapNone,
 
-    UserError(Box<Any>),
+    UnhandledCond,
+
+    UserError(Box<Any>)
 }
 
 impl AresError {
