@@ -24,9 +24,9 @@ fn basic_cond() {
 
 #[test]
 fn basic_switch() {
-    eval_ok!("(define t (lambda (x) true)) (switch 5 t 1)", 1);
+    eval_ok!("(define t (lambda (x) true)) (condp 5 t 1)", 1);
     eval_ok!(
-"(switch 10
+"(condp 10
         string? 1
         bool? 2
         int? 3)", 3);

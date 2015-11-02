@@ -1,0 +1,29 @@
+(define x 0)
+(define s "hello world")
+(define b true)
+
+(if (= x s)
+    (print "x = s")
+    (print "x != s"))
+
+(if (= x x)
+    (print "x is x!")
+    (print "x isn't x somehow?"))
+
+(print (cond
+    false "not this"
+    b "here we go"
+))
+
+(print (condp s
+    int? "it's an int!"
+    bool? "it's a bool!"
+    string? "it's a string!"
+))
+
+
+=================================
+x != s
+x is x!
+here we go
+it's a string!

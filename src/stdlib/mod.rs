@@ -4,7 +4,6 @@ use {user_fn, free_fn, ast_fn, Context, State};
 // pub fn load_all<T>(_: T) {}
 // pub fn load_debug<T>(_: T) {}
 
-
 pub mod arithmetic;
 pub mod math;
 pub mod core;
@@ -72,7 +71,7 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
     ctx.set_fn("if", ast_fn("if", self::core::iff));
     ctx.set_fn("cond", ast_fn("cond", self::core::cond));
-    ctx.set_fn("switch", ast_fn("switch", self::core::switch));
+    ctx.set_fn("condp", ast_fn("switch", self::core::switch));
     ctx.set_fn("quasiquote", ast_fn("quasiquote", self::core::quasiquote));
     ctx.set_fn("macroexpand",
                user_fn("macroexpand", self::core::macroexpand));
