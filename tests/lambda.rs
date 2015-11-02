@@ -49,11 +49,8 @@ fn list_params() {
 
 #[test]
 fn rest_params() {
-    /*
     eval_ok!("((lambda (. rest) rest) 1 2 3)", vec![1, 2, 3]);
-    */
     eval_ok!("((lambda (x . rest) rest) 1 2 3)", vec![2, 3]);
-    /*
     eval_ok!("((lambda (x y . rest) rest) 1 2 3)", vec![3]);
     eval_ok!("((lambda (x y z . rest) rest) 1 2 3)", Vec::<ares::Value>::new());
     eval_err!("((lambda (x y z . rest) rest) 1 2)", UnexpectedArity{..});
@@ -61,5 +58,4 @@ fn rest_params() {
     eval_err!("(lambda (x y . rest . rest2) rest)", UnexpectedArgsList(..));
     eval_err!("(lambda (x y . rest rest2) rest)", UnexpectedArgsList(..));
     eval_err!("(lambda (x y . .) rest)", UnexpectedArgsList(..));
-    */
 }
