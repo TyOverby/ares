@@ -18,6 +18,8 @@ pub struct Context<S: State + ?Sized> {
 pub struct LoadedContext<'a, S: State + ?Sized> {
     ctx: &'a mut Context<S>,
     state: &'a mut S,
+
+    pub env_stack: Vec<Env>,
     pub stack: Vec<StepState>
 }
 
@@ -58,7 +60,8 @@ impl <S: State + ?Sized> Context<S> {
         LoadedContext {
             ctx: self,
             state: state,
-            stack: vec![]
+            env_stack: vec![],
+            stack: vec![],
         }
     }
 
@@ -120,6 +123,16 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         let r = f(self);
         swap(&mut self.state, &mut state);
         r
+    }
+
+    pub fn env(&self) -> &Env {
+        let &LoadedContext { ref ctx, ref env_stack, ..} = self;
+        env_stack.last().unwrap_or(&ctx.env)
+    }
+
+    pub fn env_mut(&mut self) -> &mut Env {
+        let &mut LoadedContext { ref mut ctx, ref mut env_stack, ..} = self;
+        env_stack.last_mut().unwrap_or(&mut ctx.env)
     }
 
     pub fn state(&mut self) -> &mut S {

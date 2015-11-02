@@ -29,7 +29,7 @@ impl <S: State + ?Sized> ForeignFunction<S> {
 }
 
 impl ForeignFunction<()> {
-    pub fn correct<S: State + ?Sized>(&self) -> Result<&ForeignFunction<S>, &ForeignFunction<()>> {
+    pub fn correct<S: State + ?Sized>(self) -> Result<ForeignFunction<S>, ForeignFunction<()>> {
         use std::mem::transmute;
         if TypeId::of::<S>() == self.typeid {
             Ok(unsafe { transmute(self) })
