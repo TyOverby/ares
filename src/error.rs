@@ -45,6 +45,7 @@ pub enum AresError {
     NoNameDefine,
     NoValueDefine,
     MultiValueDefine,
+    UnwrapNone,
 
     UserError(Box<Any>),
 }

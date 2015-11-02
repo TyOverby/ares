@@ -1,0 +1,12 @@
+(define s (some 5))
+(if (some? s)
+    (print (unwrap s))
+    (print "no value"))
+
+(set s (none))
+(if (some? s)
+    (print (unwrap s))
+    (print "no value"))
+=======================
+5
+no value

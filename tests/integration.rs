@@ -11,6 +11,7 @@ pub fn integration_tests() {
     run_test("fib");
     run_test("factorial");
     run_test("iflet");
+    run_test("optional");
 }
 
 fn get_lines(contents: String) -> (String, Vec<String>) {
