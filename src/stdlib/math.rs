@@ -1,4 +1,4 @@
-use ::{Value, AresResult, AresError};
+use {Value, AresResult, AresError};
 use super::util::expect_arity;
 
 macro_rules! gen_num_method {

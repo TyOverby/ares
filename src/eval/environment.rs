@@ -2,27 +2,27 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::cell::RefCell;
 
-use ::Value;
-use ::intern::Symbol;
+use Value;
+use intern::Symbol;
 
 pub type Env = Rc<RefCell<Environment>>;
 pub struct Environment {
     parent: Option<Env>,
-    bindings: HashMap<Symbol, Value>
+    bindings: HashMap<Symbol, Value>,
 }
 
 impl Environment {
     pub fn new() -> Environment {
         Environment {
             parent: None,
-            bindings: HashMap::new()
+            bindings: HashMap::new(),
         }
     }
 
     pub fn new_with_data(env: Env, bindings: HashMap<Symbol, Value>) -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
-            bindings: bindings
+            bindings: bindings,
         }))
     }
 
@@ -63,7 +63,7 @@ impl Environment {
     }
 
     pub fn with_value<F, R>(&self, name: Symbol, function: F) -> Option<R>
-    where F: FnOnce(&Value) -> R
+        where F: FnOnce(&Value) -> R
     {
         if self.bindings.contains_key(&name) {
             Some(function(&self.bindings[&name]))
@@ -76,7 +76,7 @@ impl Environment {
     }
 
     pub fn with_value_mut<F, R>(&mut self, name: Symbol, function: F) -> Option<R>
-    where F: FnOnce(&mut Value) -> R
+        where F: FnOnce(&mut Value) -> R
     {
         if self.bindings.contains_key(&name) {
             Some(function(self.bindings.get_mut(&name).unwrap()))
@@ -92,4 +92,3 @@ impl Environment {
         self.bindings.insert(name.into(), value)
     }
 }
-
