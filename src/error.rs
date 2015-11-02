@@ -1,39 +1,52 @@
 use std::any::Any;
 
-use ::Value;
-use ::parse::ParseError;
+use Value;
+use parse::ParseError;
 
 pub type AresResult<T> = Result<T, AresError>;
 
+// TODO: this should derive Eq
 #[derive(Debug)]
 pub enum AresError {
     ParseError(ParseError),
     NoProgram,
 
-    UnexpectedType{value: Value, expected: String},
-    UnexpectedArity{found: u16, expected: String},
+    UnexpectedType {
+        value: Value,
+        expected: String,
+    },
+    UnexpectedArity {
+        found: u16,
+        expected: String,
+    },
 
     UnexecutableValue(Value),
     ExecuteEmptyList,
 
     UnexpectedArgsList(Value),
 
-    IllegalConversion{value: Value, into: String},
+    IllegalConversion {
+        value: Value,
+        into: String,
+    },
     UndefinedName(String),
     InvalidState(String),
+    InvalidUnquotation,
+    MacroReference,
 
     // TODO: NoNamedSet, NoValuedSet
     NoNameSet,
     NoValueSet,
 
     InvalidForeignFunctionState,
+    AstFunctionPass,
 
     AlreadyDefined(String),
     NoNameDefine,
     NoValueDefine,
     MultiValueDefine,
 
-    UserError(Box<Any>)
+    UserError(Box<Any>),
 }
 
 impl AresError {

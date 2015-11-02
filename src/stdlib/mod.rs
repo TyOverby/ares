@@ -1,4 +1,4 @@
-use ::{user_fn, free_fn, ast_fn, Context, State};
+use {user_fn, free_fn, ast_fn, Context, State};
 
 // Keep these here for when you want to build huge changes
 // pub fn load_all<T>(_: T) {}
@@ -15,16 +15,21 @@ pub mod map;
 pub mod debugger;
 
 pub mod util {
-    use ::{AresError, AresResult};
-    pub fn expect_arity<F, S: Into<String>, T>(slice: &[T], expected: F, expect_str: S) -> AresResult<()>
-    where S: Into<String>, F: FnOnce(usize) -> bool {
+    use {AresError, AresResult};
+    pub fn expect_arity<F, S: Into<String>, T>(slice: &[T],
+                                               expected: F,
+                                               expect_str: S)
+                                               -> AresResult<()>
+        where S: Into<String>,
+              F: FnOnce(usize) -> bool
+    {
         let len = slice.len();
         if expected(len) {
             Ok(())
         } else {
-            Err(AresError::UnexpectedArity{
+            Err(AresError::UnexpectedArity {
                 found: len as u16,
-                expected: expect_str.into()
+                expected: expect_str.into(),
             })
         }
     }
@@ -65,11 +70,20 @@ pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("eval", user_fn("eval", self::core::eval));
     ctx.set_fn("apply", user_fn("apply", self::core::apply));
     ctx.set_fn("quote", ast_fn("quote", self::core::quote));
+    ctx.set_fn("quasiquote", ast_fn("quasiquote", self::core::quasiquote));
+    ctx.set_fn("macroexpand",
+               user_fn("macroexpand", self::core::macroexpand));
+    ctx.set_fn("unquote", ast_fn("unquote", self::core::unquote_error));
+    ctx.set_fn("unquote-splicing",
+               ast_fn("unquote-splicing", self::core::unquote_error));
     ctx.set_fn("if", ast_fn("if", self::core::cond));
     ctx.set_fn("let", ast_fn("let", self::core::lett));
     ctx.set_fn("set", ast_fn("set", self::core::set));
     ctx.set_fn("define", ast_fn("define", self::core::define));
+    ctx.set_fn("define-macro",
+               ast_fn("define-macro", self::core::define_macro));
     ctx.set_fn("lambda", ast_fn("lambda", self::core::lambda));
+    ctx.set_fn("gensym", user_fn("gensym", self::core::gensym));
 }
 
 pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
@@ -79,7 +93,8 @@ pub fn load_list<S: State + ?Sized>(ctx: &mut Context<S>) {
     }
     eval_into(&format!("(define list {})", self::list::LIST), ctx);
     eval_into(&format!("(define map {})", self::list::MAP), ctx);
-    eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT), ctx);
+    eval_into(&format!("(define fold-left {})", self::list::FOLD_LEFT),
+              ctx);
     eval_into(&format!("(define filter {})", self::list::FILTER), ctx);
     eval_into(&format!("(define flatten {})", self::list::FLATTEN), ctx);
     eval_into(&format!("(define concat {})", self::list::CONCAT), ctx);
@@ -112,8 +127,10 @@ pub fn load_math<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("trunc", free_fn("trunc", self::math::trunc));
 
     ctx.set_fn("fract", free_fn("fract", self::math::fract));
-    ctx.set_fn("sign_positive?", free_fn("sign_positive?", self::math::is_sign_positive));
-    ctx.set_fn("sign_negative?", free_fn("sign_negative?", self::math::is_sign_negative));
+    ctx.set_fn("sign_positive?",
+               free_fn("sign_positive?", self::math::is_sign_positive));
+    ctx.set_fn("sign_negative?",
+               free_fn("sign_negative?", self::math::is_sign_negative));
     ctx.set_fn("recip", free_fn("recip", self::math::recip));
     ctx.set_fn("sqrt", free_fn("sqrt", self::math::sqrt));
     ctx.set_fn("exp", free_fn("exp", self::math::exp));
@@ -140,12 +157,16 @@ pub fn load_math<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("atanh", free_fn("atanh", self::math::atanh));
 
     ctx.set_fn("count_ones", free_fn("count_ones", self::math::count_ones));
-    ctx.set_fn("count_zeros", free_fn("count_zeros", self::math::count_zeros));
-    ctx.set_fn("leading_zeros", free_fn("leading_zeros", self::math::leading_zeros));
-    ctx.set_fn("trailing_zeros", free_fn("trailing_zeros", self::math::trailing_zeros));
+    ctx.set_fn("count_zeros",
+               free_fn("count_zeros", self::math::count_zeros));
+    ctx.set_fn("leading_zeros",
+               free_fn("leading_zeros", self::math::leading_zeros));
+    ctx.set_fn("trailing_zeros",
+               free_fn("trailing_zeros", self::math::trailing_zeros));
     ctx.set_fn("swap_bytes", free_fn("swap_bytes", self::math::swap_bytes));
     ctx.set_fn("->big-endian", free_fn("->big-endian", self::math::to_be));
-    ctx.set_fn("->little-endian", free_fn("->little-endian", self::math::to_le));
+    ctx.set_fn("->little-endian",
+               free_fn("->little-endian", self::math::to_le));
     ctx.set_fn("abs", free_fn("abs", self::math::abs));
     ctx.set_fn("signum", free_fn("signum", self::math::signum));
     ctx.set_fn("positive?", free_fn("positive?", self::math::is_positive));
@@ -164,6 +185,8 @@ pub fn load_types<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("string?", free_fn("string?", self::types::is_string));
     ctx.set_fn("list?", free_fn("list?", self::types::is_list));
     ctx.set_fn("lambda?", free_fn("lambda?", self::types::is_lambda));
-    ctx.set_fn("foreign-fn?", free_fn("foreign-fn?", self::types::is_foreign_fn));
-    ctx.set_fn("executable", free_fn("executable", self::types::is_executable));
+    ctx.set_fn("foreign-fn?",
+               free_fn("foreign-fn?", self::types::is_foreign_fn));
+    ctx.set_fn("executable",
+               free_fn("executable", self::types::is_executable));
 }

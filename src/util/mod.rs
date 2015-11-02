@@ -57,13 +57,13 @@ impl Hasher for IdentityHash {
 pub mod rc_slice {
     #![allow(unused)]
     use std::rc::Rc;
-    use ::{Value, rc_to_usize};
+    use {Value, rc_to_usize};
 
     #[derive(Clone)]
     pub struct RcSlice {
         data: Rc<Vec<Value>>,
         start: usize,
-        len: usize
+        len: usize,
     }
 
     impl RcSlice {
@@ -76,7 +76,7 @@ pub mod rc_slice {
             RcSlice {
                 data: Rc::new(v),
                 start: 0,
-                len: len
+                len: len,
             }
         }
 
@@ -102,12 +102,12 @@ pub mod rc_slice {
             RcSlice {
                 data: self.data.clone(),
                 start: from,
-                len: len
+                len: len,
             }
         }
 
         pub fn get_slice(&self) -> &[Value] {
-            &self.data[self.start .. self.start + self.len]
+            &self.data[self.start..self.start + self.len]
         }
 
         pub fn add(&self, v: Value) -> RcSlice {
@@ -117,7 +117,7 @@ pub mod rc_slice {
         }
 
         pub fn add_all<I>(&self, i: I) -> RcSlice
-        where I: Iterator<Item=Value>
+            where I: Iterator<Item = Value>
         {
             let mut data: Vec<_> = (*self.data).clone();
             data.extend(i);
@@ -129,27 +129,18 @@ pub mod rc_slice {
         fn eq(&self, other: &RcSlice) -> bool {
             // lengths *have* to be equal
             self.len == other.len &&
-                (
-                    // shortcut
-                    (
-                        // if they are pointing to the same thing
-                        rc_to_usize(&self.data) == rc_to_usize(&self.data) &&
-                        // and they start at the same spot, then we can short cut
-                        // large equality checks
-                        self.start == other.start
-                    ) ||
-                    // Do expensive compute
-                    self.get_slice() == other.get_slice()
-                )
+            ((rc_to_usize(&self.data) == rc_to_usize(&self.data) && self.start == other.start) ||
+             self.get_slice() == other.get_slice())
         }
     }
 
     impl Eq for RcSlice {}
 
     impl ::std::hash::Hash for RcSlice {
-        fn hash<H>(&self, state: &mut H) where H: ::std::hash::Hasher {
+        fn hash<H>(&self, state: &mut H)
+            where H: ::std::hash::Hasher
+        {
             self.get_slice().hash(state)
         }
     }
 }
-

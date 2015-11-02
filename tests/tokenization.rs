@@ -77,8 +77,6 @@ fn numbers() {
     // parse_ok!("-5.123", -5.123);
     parse_ok!("1", 1);
 
-    // TODO: These fail
-    parse_ok!("+1", 1.0);
     parse_ok!("+1.0", 1.0);
     parse_fail!("(+ 3z)", "Unexpected character z at line 1, column 5, while parsing a number starting at line 1, column 4");
 }

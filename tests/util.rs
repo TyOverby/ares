@@ -22,6 +22,14 @@ macro_rules! eval_ok {
 }
 
 macro_rules! eval_err {
+    ($prog: expr) => {
+        match util::e($prog) {
+            Ok(v) => {
+                panic!("eval_err! had a value: {:?}", v);
+            }
+            Err(_) => { assert!(true) },
+        }
+    };
     ($prog: expr, $p: pat) => {
         match util::e($prog) {
             Ok(v) => {
@@ -33,6 +41,14 @@ macro_rules! eval_err {
             }
         }
     }
+}
+
+macro_rules! s {
+    ($s:expr, $c:expr) => { ares::Value::Symbol($c.interner_mut().intern($s)) }
+}
+
+macro_rules! v {
+    ($($s:expr),*) => { ares::Value::list(vec![$($s),*]) }
 }
 
 pub fn e(program: &str) -> AresResult<Value> {

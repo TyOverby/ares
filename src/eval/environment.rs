@@ -7,10 +7,12 @@ use ::Value;
 use ::intern::Symbol;
 use ::util::IdentityHash;
 
+pub type BindingHashMap = HashMap<Symbol, Value, DefaultState<IdentityHash>>;
+
 pub type Env = Rc<RefCell<Environment>>;
 pub struct Environment {
     parent: Option<Env>,
-    bindings: HashMap<Symbol, Value, DefaultState<IdentityHash>>
+    bindings: BindingHashMap,
 }
 
 impl Environment {
@@ -21,10 +23,10 @@ impl Environment {
         }
     }
 
-    pub fn new_with_data(env: Env, bindings: HashMap<Symbol, Value>) -> Env {
+    pub fn new_with_data(env: Env, bindings: HashMap<Symbol, Value, DefaultState<IdentityHash>>) -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
-            bindings: Default::default()
+            bindings: bindings,
         }))
     }
 
@@ -65,7 +67,7 @@ impl Environment {
     }
 
     pub fn with_value<F, R>(&self, name: Symbol, function: F) -> Option<R>
-    where F: FnOnce(&Value) -> R
+        where F: FnOnce(&Value) -> R
     {
         if self.bindings.contains_key(&name) {
             Some(function(&self.bindings[&name]))
@@ -78,7 +80,7 @@ impl Environment {
     }
 
     pub fn with_value_mut<F, R>(&mut self, name: Symbol, function: F) -> Option<R>
-    where F: FnOnce(&mut Value) -> R
+        where F: FnOnce(&mut Value) -> R
     {
         if self.bindings.contains_key(&name) {
             Some(function(self.bindings.get_mut(&name).unwrap()))
@@ -94,4 +96,3 @@ impl Environment {
         self.bindings.insert(name.into(), value)
     }
 }
-

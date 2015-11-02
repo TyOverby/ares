@@ -1,7 +1,9 @@
-use ::{Value, AresResult, AresError, free_fn, LoadedContext, State};
+use {Value, AresResult, AresError, free_fn, LoadedContext, State};
 use super::util::expect_arity;
 
-pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> AresResult<Value> {
+pub fn build_list<S: State + ?Sized>(args: &[Value],
+                                     ctx: &mut LoadedContext<S>)
+                                     -> AresResult<Value> {
     use std::rc::Rc;
     use std::cell::RefCell;
 
@@ -22,11 +24,11 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                 }
 
                 Ok(last.unwrap().clone()) // safe because of the expect_arity
-            },
+            }
             &mut None => {
                 let err_msg = "build-list `add`er called after completion of build-list.";
-                return Err(AresError::InvalidState(err_msg.to_string()))
-           }
+                return Err(AresError::InvalidState(err_msg.to_string()));
+            }
         }
     };
 
@@ -46,16 +48,18 @@ pub fn build_list<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>)
                 }
 
                 Ok(last.unwrap().clone()) // safe because of the expect_arity
-            },
+            }
             &mut None => {
                 let err_msg = "build-list `add`er called after completion of build-list.";
-                return Err(AresError::InvalidState(err_msg.to_string()))
-           }
+                return Err(AresError::InvalidState(err_msg.to_string()));
+            }
         }
     };
 
-    let boxed_push_indiv: Value = Value::ForeignFn(free_fn::<S, _, _>("add", push_individuals).erase());
-    let boxed_push_list: Value = Value::ForeignFn(free_fn::<S, _, _>("add-all", push_list_values).erase());
+    let boxed_push_indiv: Value = Value::ForeignFn(free_fn::<S, _, _>("add", push_individuals)
+                                                       .erase());
+    let boxed_push_list: Value = Value::ForeignFn(free_fn::<S, _, _>("add-all", push_list_values)
+                                                      .erase());
 
     let evaluator = args[0].clone();
     // TODO: should this be apply?
@@ -69,10 +73,10 @@ pub fn foreach<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) ->
     try!(expect_arity(args, |l| l == 2, "exactly 2"));
     let list: Vec<_> = match args[0] {
         Value::List(ref l) => (&**l).clone(),
-        ref other => return Err(AresError::UnexpectedType{
+        ref other => return Err(AresError::UnexpectedType {
             value: other.clone(),
-            expected: "List".into()
-        })
+            expected: "List".into(),
+        }),
     };
 
     let ref func = args[1];
@@ -89,37 +93,40 @@ pub fn foreach<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) ->
 
 pub static LIST: &'static str = "(lambda list list)";
 
-pub static MAP: &'static str =
-"(lambda (list fn)
+pub static MAP: &'static str = "(lambda (list fn)
     (build-list
         (lambda (push)
-            (for-each list (lambda (element)
-                (push (fn element)))))))";
+            \
+                                (for-each list (lambda (element)
+                (push (fn \
+                                element)))))))";
 
-pub static FOLD_LEFT: &'static str =
-"(lambda (list default fn)
-    (for-each list (lambda (element)
+pub static FOLD_LEFT: &'static str = "(lambda (list default fn)
+    (for-each list (lambda \
+                                      (element)
         (set default (fn default element))
     ))
-    default)";
+    \
+                                      default)";
 
-pub static FILTER: &'static str =
-"(lambda (list fn)
+pub static FILTER: &'static str = "(lambda (list fn)
     (build-list
         (lambda (push)
-            (for-each list (lambda (element)
-                (if (fn element)
+            \
+                                   (for-each list (lambda (element)
+                (if (fn \
+                                   element)
                     (push element)
-                    false))))))";
+                    \
+                                   false))))))";
 
-pub static FLATTEN: &'static str =
-"(lambda (list-of-lists)
+pub static FLATTEN: &'static str = "(lambda (list-of-lists)
     (build-list
-        (lambda (push push-all)
-            (for-each list-of-lists (lambda (sub-list)
+        (lambda (push \
+                                    push-all)
+            (for-each list-of-lists (lambda \
+                                    (sub-list)
                 (push-all sub-list))))))";
 
-pub static CONCAT: &'static str =
-"(lambda lists
+pub static CONCAT: &'static str = "(lambda lists
     (flatten lists))";
-
