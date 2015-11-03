@@ -14,7 +14,7 @@ pub mod logical;
 pub mod map;
 pub mod debugger;
 
-mod core_symbols {
+pub mod core_symbols {
     pub const EVAL: u32 = 0;
     pub const APPLY: u32 = 1;
     pub const QUOTE: u32 = 2;

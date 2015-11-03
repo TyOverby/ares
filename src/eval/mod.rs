@@ -1,4 +1,6 @@
 use super::{Value, AresError, AresResult};
+use super::intern::Symbol as InternedSymbol;
+use {stdlib};
 
 pub use self::environment::{Env, Environment};
 pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn, user_fn, FfType};
@@ -10,6 +12,7 @@ mod foreign_function;
 mod procedure;
 mod context;
 mod transformations;
+mod core;
 
 #[derive(Clone)]
 pub enum StepState {
@@ -203,20 +206,24 @@ fn eval_this<S: State + ?Sized>(value: Value,
                                 ctx: &mut LoadedContext<S>,
                                 proc_head: bool)
                                 -> AresResult<()> {
+    fn lookup<S: ?Sized + State>(symbol: InternedSymbol, ctx: &mut LoadedContext<S>, proc_head: bool) -> AresResult<Value> {
+        let lookup = ctx.env().borrow().get(symbol);
+        match lookup {
+            // Ban Ast functions that are getting passed as arguments.
+            Some(Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..})) if !proc_head => {
+                Err(AresError::AstFunctionPass)
+            }
+            Some(v) => {
+                Ok(v)
+            }
+            None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol))),
+        }
+    }
     match value {
         Value::Symbol(symbol) => {
-            let lookup = ctx.env().borrow().get(symbol);
-            match lookup {
-                // Ban Ast functions that are getting passed as arguments.
-                Some(Value::ForeignFn(ForeignFunction{typ: FfType::Ast, ..})) if !proc_head => {
-                    Err(AresError::AstFunctionPass)
-                }
-                Some(v) => {
-                    ctx.stack.push(StepState::Complete(v));
-                    Ok(())
-                }
-                None => Err(AresError::UndefinedName(ctx.interner().lookup_or_anon(symbol))),
-            }
+            let value = try!(lookup(symbol, ctx, proc_head));
+            ctx.stack.push(StepState::Complete(value));
+            Ok(())
         }
 
         Value::List(items) => {
@@ -230,10 +237,25 @@ fn eval_this<S: State + ?Sized>(value: Value,
             // (a b c d)
             //  ^
             let first = items.remove(0);
-            // Start a pre-evaluated callable with the rest of the items.
-            ctx.stack.push(StepState::PreEvaluatedCallable { unevaluated: items });
-            // Try to evaluate the head.
-            ctx.stack.push(StepState::EvalThis(first, true));
+
+            if let Value::Symbol(symbol) = first {
+                match symbol.id() {
+                    // TODO
+                    /*
+                    stdlib::core_symbols::EVAL => {
+                        panic!();
+                    }*/
+                    _ => {
+                        let func = try!(lookup(symbol, ctx, true));
+                        try!(transformations::from_pre_evaluated(items, func, ctx));
+                    }
+                }
+            } else {
+                // Start a pre-evaluated callable with the rest of the items.
+                ctx.stack.push(StepState::PreEvaluatedCallable { unevaluated: items });
+                // Try to evaluate the head.
+                ctx.stack.push(StepState::EvalThis(first, true));
+            }
             Ok(())
         }
 
