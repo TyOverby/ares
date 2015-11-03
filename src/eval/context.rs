@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::any::Any;
 
-use super::{Env, eval, apply};
+use super::{Env, eval, apply, StepState};
 use {Value, AresResult, AresError, parse, stdlib, Environment, ForeignFunction};
 use intern::SymbolIntern;
 use stdlib::core::macroexpand;
@@ -18,6 +18,9 @@ pub struct Context<S: State + ?Sized> {
 pub struct LoadedContext<'a, S: State + ?Sized> {
     ctx: &'a mut Context<S>,
     state: &'a mut S,
+
+    pub env_stack: Vec<Env>,
+    pub stack: Vec<StepState>,
 }
 
 pub trait State: Any {}
@@ -57,6 +60,8 @@ impl <S: State + ?Sized> Context<S> {
         LoadedContext {
             ctx: self,
             state: state,
+            env_stack: vec![],
+            stack: vec![],
         }
     }
 
@@ -120,12 +125,22 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
         r
     }
 
+    pub fn env(&self) -> &Env {
+        let &LoadedContext { ref ctx, ref env_stack, ..} = self;
+        env_stack.last().unwrap_or(&ctx.env)
+    }
+
+    pub fn env_mut(&mut self) -> &mut Env {
+        let &mut LoadedContext { ref mut ctx, ref mut env_stack, ..} = self;
+        env_stack.last_mut().unwrap_or(&mut ctx.env)
+    }
+
     pub fn state(&mut self) -> &mut S {
         self.state
     }
 
     pub fn eval(&mut self, value: &Value) -> AresResult<Value> {
-        eval(value, self, false)
+        eval(value, self)
     }
 
     pub fn macroexpand(&mut self, value: Value) -> AresResult<Value> {
@@ -146,7 +161,9 @@ impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
     }
 
     pub fn call(&mut self, func: &Value, args: &[Value]) -> AresResult<Value> {
-        apply(func, &args[..], self)
+        // FIXME
+        let args: Vec<_> = args.iter().cloned().collect();
+        apply(func, args, self)
     }
 
     pub fn call_named<N: ?Sized + AsRef<str>>(&mut self,

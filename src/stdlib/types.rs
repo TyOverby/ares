@@ -75,7 +75,7 @@ pub fn to_int(values: &[Value]) -> AresResult<Value> {
         } else {
             0
         })),
-        &Value::String(ref s) => Ok(Value::Int(s.parse().unwrap())),
+        &Value::String(ref s) => Ok(Value::Int(s.parse().unwrap())), // TODO: no unwrap here
         other => Err(AresError::IllegalConversion {
             value: other.clone(),
             into: "Int".to_string(),
@@ -91,7 +91,7 @@ pub fn to_float(values: &[Value]) -> AresResult<Value> {
     let res = match values.first().unwrap() {
         &Value::Int(i) => Ok(Value::Float(i as f64)),
         &Value::Float(f) => Ok(Value::Float(f)),
-        &Value::String(ref s) => Ok(Value::Float(s.parse().unwrap())),
+        &Value::String(ref s) => Ok(Value::Float(s.parse().unwrap())), // TODO: no unwrap here
         other => Err(AresError::IllegalConversion {
             value: other.clone(),
             into: "Float".to_string(),

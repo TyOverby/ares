@@ -6,6 +6,7 @@ use Value;
 use intern::Symbol;
 
 pub type Env = Rc<RefCell<Environment>>;
+#[derive(Debug)]
 pub struct Environment {
     parent: Option<Env>,
     bindings: HashMap<Symbol, Value>,

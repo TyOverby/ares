@@ -9,7 +9,7 @@ mod util;
 fn basic() {
     eval_ok!("((lambda () 1))", 1);
     eval_ok!("((lambda (a) (+ a 2)) 3)", 5);
-    eval_ok!("((lambda (a b) (+ a b)) 3 4)", 7);
+   eval_ok!("((lambda (a b) (+ a b)) 3 4)", 7);
 }
 
 #[test]
