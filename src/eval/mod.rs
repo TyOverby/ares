@@ -31,10 +31,17 @@ pub enum StepState {
     },
 }
 
+fn cleanup_stack<S: ?Sized + State>(target_size: usize, ctx: &mut LoadedContext<S>) {
+    while ctx.stack.len() > target_size {
+        ctx.stack.pop();
+    }
+}
+
 /// Runs the eval-loop until the state stack of of a target size.
 /// The target size is usually the size of the stack before the call to eval/apply
 /// plus 2 (one spot for the StepState::Return, one spot for the StepState::Complete)
 fn run_evaluation<S: ?Sized + State>(target_len: usize,
+                                     cleanup_len: usize,
                                      ctx: &mut LoadedContext<S>)
                                      -> AresResult<(StepState, StepState)> {
     loop {
@@ -55,9 +62,9 @@ fn run_evaluation<S: ?Sized + State>(target_len: usize,
         let result = step_eval(ctx);
 
         // If an error occurred, clean up the stack from this point and propogate
-        // the error upwards
+        // the error upwards.
         if let Err(e) = result {
-            // TODO: handle the error and clean up the stack.
+            cleanup_stack(cleanup_len, ctx);
             return Err(e);
         }
     }
@@ -85,11 +92,13 @@ pub fn eval<S: ?Sized>(value: &Value, ctx: &mut LoadedContext<S>) -> AresResult<
     // now.
     let value = value.clone();
 
+    let cleanup_len = ctx.stack.len();
+
     // Push the return signal and a request to evaluate the value onto the stack.
     ctx.stack.push(StepState::Return);
     ctx.stack.push(StepState::EvalThis(value, false));
 
-    match try!(run_evaluation(ctx.stack.len(), ctx)) {
+    match try!(run_evaluation(ctx.stack.len(), cleanup_len, ctx)) {
         (StepState::Return, StepState::Complete(value)) => Ok(value),
         (next_top, top) => panic!("eval(..): invalid stack state [{:?}, {:?}, {:?}]",
                                   ctx.stack,
@@ -112,7 +121,7 @@ pub fn apply<'a, S: ?Sized>(func: &Value,
     try!(do_apply(func.clone(), args, ctx));
     // Run the evaluation with a target end point of the prior length + 2
     // (one for the return, one for the Completed value.
-    match try!(run_evaluation(prior_len + 2, ctx)) {
+    match try!(run_evaluation(prior_len + 2, prior_len, ctx)) {
         (StepState::Return, StepState::Complete(value)) => Ok(value),
         (next_top, top) => panic!("apply(..): invalid stack state [{:?}, {:?}, {:?}]",
                                   ctx.stack,
