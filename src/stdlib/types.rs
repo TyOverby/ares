@@ -25,10 +25,32 @@ gen_is_type!(is_float, Float);
 gen_is_type!(is_bool, Bool);
 gen_is_type!(is_string, String);
 gen_is_type!(is_list, List);
+gen_is_type!(is_option, Option);
 gen_is_type!(is_symbol, Symbol);
 gen_is_type!(is_lambda, Lambda);
 gen_is_type!(is_foreign_fn, ForeignFn);
 
+pub fn is_some(values: &[Value]) -> AresResult<Value> {
+    for item in values {
+        match item {
+            &Value::Option(Some(_)) => {},
+            _ => return Ok(false.into())
+        }
+    }
+
+    Ok(true.into())
+}
+
+pub fn is_none(values: &[Value]) -> AresResult<Value> {
+    for item in values {
+        match item {
+            &Value::Option(None) => {},
+            _ => return Ok(false.into())
+        }
+    }
+
+    Ok(true.into())
+}
 pub fn is_executable(values: &[Value]) -> AresResult<Value> {
     for item in values {
         match item {
@@ -125,6 +147,12 @@ pub fn to_string_helper(value: &Value, interner: &SymbolIntern) -> String {
         &Value::Float(f) => format!("{}", f),
         &Value::String(ref s) => (&**s).clone(),
         &Value::Bool(b) => format!("{}", b),
+        &Value::Option(ref o) => {
+            match o {
+                &Some(ref value) => format!("Some({})", to_string_helper(value, interner)),
+                &None => "None".to_owned()
+            }
+        }
         &Value::ForeignFn(ref ff) => format!("<#{}>", ff.name),
         &Value::Lambda(ref l, _) => format!("<@{}>",
                                             l.name.as_ref().map(|s| &s[..]).unwrap_or("anonymous")),

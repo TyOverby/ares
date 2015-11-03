@@ -31,12 +31,6 @@ pub enum StepState {
     },
 }
 
-fn cleanup_stack<S: ?Sized + State>(prev_length: usize, ctx: &mut LoadedContext<S>) {
-    while ctx.stack.len() > (prev_length - 2) {
-        ctx.stack.pop();
-    }
-}
-
 /// Runs the eval-loop until the state stack of of a target size.
 /// The target size is usually the size of the stack before the call to eval/apply
 /// plus 2 (one spot for the StepState::Return, one spot for the StepState::Complete)
@@ -63,7 +57,7 @@ fn run_evaluation<S: ?Sized + State>(target_len: usize,
         // If an error occurred, clean up the stack from this point and propogate
         // the error upwards
         if let Err(e) = result {
-            cleanup_stack(target_len, ctx);
+            // TODO: handle the error and clean up the stack.
             return Err(e);
         }
     }

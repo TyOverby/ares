@@ -13,6 +13,7 @@ pub mod list;
 pub mod logical;
 pub mod map;
 pub mod debugger;
+pub mod option;
 
 pub mod util {
     use {AresError, AresResult};
@@ -44,6 +45,7 @@ fn eval_into<S: State + ?Sized, P: AsRef<str>>(src: &P, ctx: &mut Context<S>) {
 
 pub fn load_all<S: State + ?Sized>(ctx: &mut Context<S>) {
     load_core(ctx);
+    load_option(ctx);
     load_logical(ctx);
     load_list(ctx);
     load_math(ctx);
@@ -64,6 +66,12 @@ pub fn load_logical<S: State + ?Sized>(ctx: &mut Context<S>) {
     ctx.set_fn("and", ast_fn("and", self::logical::and));
     ctx.set_fn("or", ast_fn("or", self::logical::or));
     ctx.set_fn("xor", ast_fn("xor", self::logical::xor));
+}
+
+pub fn load_option<S: State + ?Sized>(ctx: &mut Context<S>) {
+    ctx.set_fn("some", free_fn("some", self::option::some));
+    ctx.set_fn("none", free_fn("none", self::option::none));
+    ctx.set_fn("unwrap", free_fn("unwrap", self::option::unwrap));
 }
 
 pub fn load_core<S: State + ?Sized>(ctx: &mut Context<S>) {
@@ -189,4 +197,8 @@ pub fn load_types<S: State + ?Sized>(ctx: &mut Context<S>) {
                free_fn("foreign-fn?", self::types::is_foreign_fn));
     ctx.set_fn("executable",
                free_fn("executable", self::types::is_executable));
+
+    ctx.set_fn("option?", free_fn("option?", self::types::is_option));
+    ctx.set_fn("some?", free_fn("some?", self::types::is_some));
+    ctx.set_fn("none?", free_fn("none?", self::types::is_none));
 }
