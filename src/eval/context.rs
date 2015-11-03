@@ -35,16 +35,19 @@ impl <S: State + ?Sized> Context<S> {
             interner: SymbolIntern::new(),
             _state: PhantomData,
         };
+        stdlib::load_bare_minimum(&mut ctx);
         stdlib::load_all(&mut ctx);
         ctx
     }
 
     pub fn new_empty() -> Context<S> {
-        Context {
+        let mut ctx = Context {
             env: Rc::new(RefCell::new(Environment::new())),
             interner: SymbolIntern::new(),
             _state: PhantomData,
-        }
+        };
+        stdlib::load_bare_minimum(&mut ctx);
+        ctx
     }
 
     pub fn with_debug(mut self) -> Context<S> {

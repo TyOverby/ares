@@ -10,6 +10,19 @@ pub struct SymbolIntern {
     string_to_sym: HashMap<String, Symbol>,
 }
 
+impl Symbol {
+    #[doc(hide)]
+    #[inline(always)]
+    pub fn construct(id: u32) -> Symbol {
+        Symbol(id)
+    }
+
+    pub fn id(&self) -> u32 {
+        let &Symbol(id) = self;
+        id
+    }
+}
+
 impl SymbolIntern {
     pub fn new() -> SymbolIntern {
         SymbolIntern {

@@ -14,6 +14,37 @@ pub mod logical;
 pub mod map;
 pub mod debugger;
 
+mod core_symbols {
+    pub const EVAL: u32 = 0;
+    pub const APPLY: u32 = 1;
+    pub const QUOTE: u32 = 2;
+    pub const QUASIQUOTE: u32 = 3;
+    pub const MACROEXPAND: u32 = 4;
+    pub const UNQUOTE: u32 = 5;
+    pub const UNQUOTE_SPLICING: u32 = 6;
+    pub const IFF: u32 = 7;
+    pub const LETT: u32 = 8;
+    pub const SET: u32 = 9;
+    pub const DEFINE: u32 = 10;
+    pub const DEFINE_MACRO: u32 = 11;
+    pub const LAMBDA: u32 = 12;
+    pub const GENSYM: u32 = 13;
+
+    pub const AND: u32 = 14;
+    pub const OR: u32 = 15;
+    pub const XOR: u32 = 16;
+
+    pub const EQUALS: u32 = 17;
+    pub const IADD: u32 = 18;
+    pub const FADD: u32 = 19;
+    pub const ISUB: u32 = 20;
+    pub const FSUB: u32 = 21;
+    pub const IMUL: u32 = 22;
+    pub const FMUL: u32 = 23;
+    pub const IDIV: u32 = 24;
+    pub const FDIV: u32 = 25;
+}
+
 pub mod util {
     use {AresError, AresResult};
     pub fn expect_arity<F, S: Into<String>, T>(slice: &[T],
@@ -40,6 +71,37 @@ fn eval_into<S: State + ?Sized, P: AsRef<str>>(src: &P, ctx: &mut Context<S>) {
     let mut dummy: &mut S = unsafe { uninitialized() };
     let mut ctx = ctx.load(dummy);
     ctx.eval_str(src.as_ref()).unwrap();
+}
+
+pub fn load_bare_minimum<S: State + ?Sized>(ctx: &mut Context<S>) {
+    assert!(ctx.interner_mut().intern("eval").id() == core_symbols::EVAL);
+    assert!(ctx.interner_mut().intern("apply").id() == core_symbols::APPLY);
+    assert!(ctx.interner_mut().intern("quote").id() == core_symbols::QUOTE);
+    assert!(ctx.interner_mut().intern("quasiquote").id() == core_symbols::QUASIQUOTE);
+    assert!(ctx.interner_mut().intern("macroexpand").id() == core_symbols::MACROEXPAND);
+    assert!(ctx.interner_mut().intern("unquote").id() == core_symbols::UNQUOTE);
+    assert!(ctx.interner_mut().intern("unquote_splicing").id() == core_symbols::UNQUOTE_SPLICING);
+    assert!(ctx.interner_mut().intern("iff").id() == core_symbols::IFF);
+    assert!(ctx.interner_mut().intern("lett").id() == core_symbols::LETT);
+    assert!(ctx.interner_mut().intern("set").id() == core_symbols::SET);
+    assert!(ctx.interner_mut().intern("define").id() == core_symbols::DEFINE);
+    assert!(ctx.interner_mut().intern("define_macro").id() == core_symbols::DEFINE_MACRO);
+    assert!(ctx.interner_mut().intern("lambda").id() == core_symbols::LAMBDA);
+    assert!(ctx.interner_mut().intern("gensym").id() == core_symbols::GENSYM);
+
+    assert!(ctx.interner_mut().intern("and").id() == core_symbols::AND);
+    assert!(ctx.interner_mut().intern("or").id() == core_symbols::OR);
+    assert!(ctx.interner_mut().intern("xor").id() == core_symbols::XOR);
+
+    assert!(ctx.interner_mut().intern("=").id() == core_symbols::EQUALS);
+    assert!(ctx.interner_mut().intern("+").id() == core_symbols::IADD);
+    assert!(ctx.interner_mut().intern("+.").id() == core_symbols::FADD);
+    assert!(ctx.interner_mut().intern("-").id() == core_symbols::ISUB);
+    assert!(ctx.interner_mut().intern("-.").id() == core_symbols::FSUB);
+    assert!(ctx.interner_mut().intern("*").id() == core_symbols::IMUL);
+    assert!(ctx.interner_mut().intern("*.").id() == core_symbols::FMUL);
+    assert!(ctx.interner_mut().intern("/").id() == core_symbols::IDIV);
+    assert!(ctx.interner_mut().intern("/.").id() == core_symbols::FDIV);
 }
 
 pub fn load_all<S: State + ?Sized>(ctx: &mut Context<S>) {
