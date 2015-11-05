@@ -103,13 +103,12 @@ impl <S: State + ?Sized> Context<S> {
 }
 
 impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
-    pub fn with_other_env<F, R>(&mut self, env: &mut Env, f: F) -> R
+    pub fn with_other_env<F, R>(&mut self, env: &Env, f: F) -> R
         where F: FnOnce(&mut LoadedContext<'a, S>) -> R
     {
-        use std::mem::swap;
-        swap(&mut self.ctx.env, env);
+        self.env_stack.push(env.clone());
         let r = f(self);
-        swap(&mut self.ctx.env, env);
+        self.env_stack.pop();
         r
     }
 
