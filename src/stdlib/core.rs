@@ -44,19 +44,21 @@ pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
             }),
         };
 
-        let evaluated = ctx.with_other_env(&mut new_env, move |new_ctx| new_ctx.eval(value));
+        let (env, evaluated) = ctx.with_other_env(new_env, move |new_ctx| new_ctx.eval(value));
+        new_env = env;
         let evaluated = try!(evaluated);
 
         new_env.borrow_mut().insert_here(name, evaluated.clone());
     }
 
     let mut last = None;
-    try!(ctx.with_other_env(&mut new_env, |new_ctx| -> AresResult<()> {
+    let (_, bodies_execution) = ctx.with_other_env(new_env, |new_ctx| -> AresResult<()> {
         for body in bodies {
             last = Some(try!(new_ctx.eval(body)));
         }
         Ok(())
-    }));
+    });
+    try!(bodies_execution);
 
     Ok(last.unwrap())
 }

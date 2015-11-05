@@ -103,13 +103,12 @@ impl <S: State + ?Sized> Context<S> {
 }
 
 impl <'a, S: State + ?Sized> LoadedContext<'a, S> {
-    pub fn with_other_env<F, R>(&mut self, env: &Env, f: F) -> R
+    pub fn with_other_env<F, R>(&mut self, env: Env, f: F) -> (Env, R)
         where F: FnOnce(&mut LoadedContext<'a, S>) -> R
     {
         self.env_stack.push(env.clone());
         let r = f(self);
-        self.env_stack.pop();
-        r
+        (self.env_stack.pop().unwrap(), r)
     }
 
     pub fn with_other_state<F, R>(&mut self, state: &mut S, f: F) -> R

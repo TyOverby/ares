@@ -50,9 +50,9 @@ pub fn debugger<S: State + ?Sized>(args: &[Value],
     let mut mapping = HashMap::new();
     mapping.insert(ctx.interner_mut().intern("debugger-close"), debugger_close);
     mapping.insert(ctx.interner_mut().intern("debugger-env"), debugger_env);
-    let mut new_env = Environment::new_with_data(ctx.env().clone(), mapping);
+    let new_env = Environment::new_with_data(ctx.env().clone(), mapping);
 
-    ctx.with_other_env(&mut new_env, |ctx| {
+    ctx.with_other_env(new_env, |ctx| {
         while result.borrow().is_none() {
             let line = match prompt("debugger> ") {
                 Some(line) => line,
