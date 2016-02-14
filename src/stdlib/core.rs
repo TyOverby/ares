@@ -32,7 +32,7 @@ pub fn lett<S: State + ?Sized>(args: &[Value], ctx: &mut LoadedContext<S>) -> Ar
 
     try!(expect_arity(&**bindings, |l| l % 2 == 0, "an even number"));
 
-    let mut new_env = Environment::new_with_data(ctx.env().clone(), HashMap::new());
+    let mut new_env = Environment::new_with_data(ctx.env().clone(), Default::default());
     for pair in bindings.chunks(2) {
         let (name, value) = (&pair[0], &pair[1]);
 

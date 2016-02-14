@@ -1,26 +1,32 @@
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::collections::hash_state::DefaultState;
 use std::cell::RefCell;
 
 use Value;
 use intern::Symbol;
+use util::IdentityHash;
+
+pub type BindingHashMap = HashMap<Symbol, Value, DefaultState<IdentityHash>>;
 
 pub type Env = Rc<RefCell<Environment>>;
 #[derive(Debug)]
 pub struct Environment {
     parent: Option<Env>,
-    bindings: HashMap<Symbol, Value>,
+    bindings: BindingHashMap,
 }
 
 impl Environment {
     pub fn new() -> Environment {
         Environment {
             parent: None,
-            bindings: HashMap::new(),
+            bindings: Default::default(),
         }
     }
 
-    pub fn new_with_data(env: Env, bindings: HashMap<Symbol, Value>) -> Env {
+    pub fn new_with_data(env: Env,
+                         bindings: HashMap<Symbol, Value, DefaultState<IdentityHash>>)
+                         -> Env {
         Rc::new(RefCell::new(Environment {
             parent: Some(env),
             bindings: bindings,

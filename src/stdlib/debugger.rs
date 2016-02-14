@@ -1,7 +1,6 @@
 use std::rc::Rc;
-use std::collections::HashMap;
 use std::cell::RefCell;
-use {Value, AresResult, LoadedContext, State, user_fn, free_fn, Environment};
+use {Value, AresResult, LoadedContext, State, user_fn, free_fn, Environment, BindingHashMap};
 use util::prompt;
 use intern::Symbol;
 use super::util::expect_arity;
@@ -47,7 +46,7 @@ pub fn debugger<S: State + ?Sized>(args: &[Value],
                                                      .erase());
     let debugger_env: Value = Value::ForeignFn(user_fn::<S, _, _>("debugger-env", debugger_env)
                                                    .erase());
-    let mut mapping = HashMap::new();
+    let mut mapping: BindingHashMap = Default::default();
     mapping.insert(ctx.interner_mut().intern("debugger-close"), debugger_close);
     mapping.insert(ctx.interner_mut().intern("debugger-env"), debugger_env);
     let new_env = Environment::new_with_data(ctx.env().clone(), mapping);

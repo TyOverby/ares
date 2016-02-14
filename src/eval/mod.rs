@@ -1,6 +1,6 @@
 use super::{Value, AresError, AresResult};
 
-pub use self::environment::{Env, Environment};
+pub use self::environment::{Env, Environment, BindingHashMap};
 pub use self::foreign_function::{ForeignFunction, free_fn, ast_fn, user_fn, FfType};
 pub use self::procedure::{Procedure, ParamBinding};
 pub use self::context::{Context, LoadedContext, State};

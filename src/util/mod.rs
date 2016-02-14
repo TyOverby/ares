@@ -1,5 +1,6 @@
 pub use self::rc_slice::RcSlice;
 use std::io::{self, BufRead, Write};
+use std::hash::Hasher;
 
 pub fn prompt<P: ?Sized + AsRef<str>>(prompt: &P) -> Option<String> {
     let printed = write!(io::stdout(), "{}", prompt.as_ref());
@@ -12,6 +13,43 @@ pub fn prompt<P: ?Sized + AsRef<str>>(prompt: &P) -> Option<String> {
         (Ok(_), Ok(_), Ok(0)) => None,
         (Ok(_), Ok(_), Ok(_)) => Some(buffer),
         _ => None,
+    }
+}
+
+/// A hasher implementation made specifically for
+/// hashing u32 key values.
+///
+/// This is *NOT* a cryptographic hash.
+pub struct IdentityHash {
+    state: u32,
+}
+
+impl IdentityHash {
+    pub fn new() -> IdentityHash {
+        IdentityHash { state: 0 }
+    }
+}
+
+impl Default for IdentityHash {
+    fn default() -> IdentityHash {
+        IdentityHash::new()
+    }
+}
+
+impl Hasher for IdentityHash {
+    fn finish(&self) -> u64 {
+        self.state as u64
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.state <<= 8;
+            self.state += byte as u32;
+        }
+    }
+
+    fn write_u32(&mut self, v: u32) {
+        self.state = v;
     }
 }
 

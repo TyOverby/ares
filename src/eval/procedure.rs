@@ -1,7 +1,6 @@
 use std::rc::Rc;
-use std::collections::HashMap;
 
-use {Value, AresError, AresResult, rc_to_usize, write_usize};
+use {Value, AresError, AresResult, rc_to_usize, BindingHashMap};
 
 pub use super::environment::{Env, Environment};
 use intern::Symbol;
@@ -51,12 +50,12 @@ impl Procedure {
             });
         }
         let named: Vec<_> = params[..params_expected].into();
-        let mut bindings: HashMap<Symbol, Value> = self.param_names
-                                                       .params
-                                                       .iter()
-                                                       .cloned()
-                                                       .zip(named)
-                                                       .collect();
+        let mut bindings: BindingHashMap = self.param_names
+                                               .params
+                                               .iter()
+                                               .cloned()
+                                               .zip(named)
+                                               .collect();
         match self.param_names.rest {
             Some(rest_sym) => {
                 let vec: Vec<_> = params[params_expected..].into();
@@ -88,7 +87,7 @@ impl ::std::hash::Hash for Procedure {
     fn hash<H>(&self, state: &mut H)
         where H: ::std::hash::Hasher
     {
-        write_usize(rc_to_usize(&self.bodies), state);
-        write_usize(rc_to_usize(&self.environment), state);
+        state.write_usize(rc_to_usize(&self.bodies));
+        state.write_usize(rc_to_usize(&self.environment));
     }
 }

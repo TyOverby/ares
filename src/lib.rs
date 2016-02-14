@@ -1,3 +1,5 @@
+#![feature(hashmap_hasher)]
+
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::any::Any;
@@ -10,8 +12,8 @@ pub mod util;
 pub mod intern;
 
 pub use parse::parse;
-pub use eval::{user_fn, free_fn, ast_fn, Procedure, ForeignFunction, Env, Environment,
-               ParamBinding, Context, LoadedContext, State};
+pub use eval::{user_fn, free_fn, ast_fn, Procedure, ForeignFunction, BindingHashMap, Env,
+               Environment, ParamBinding, Context, LoadedContext, State};
 pub use error::{AresError, AresResult};
 
 macro_rules! gen_from {
@@ -154,19 +156,8 @@ impl std::hash::Hash for Value {
                 p.hash(state);
                 b.hash(state)
             }
-            &Value::UserData(ref u) => write_usize(rc_to_usize(u), state),
+            &Value::UserData(ref u) => state.write_usize(rc_to_usize(u)),
             &Value::Map(_) => unimplemented!(),  // hashmap not hashable.
-        }
-    }
-}
-
-fn write_usize<H: ::std::hash::Hasher>(v: usize, hasher: &mut H) {
-    use std::mem::transmute;
-    unsafe {
-        if cfg!(target_pointer_width = "32") {
-            hasher.write(&transmute::<_, [u8; 4]>((v as u32)))
-        } else {
-            hasher.write(&transmute::<_, [u8; 8]>((v as u64)))
         }
     }
 }
